@@ -14,17 +14,40 @@
     <div id="loginModal" class="modal active">
         <div class="modal-content">
             <h2>欢迎登录学习笔记平台</h2>
+            
+            <!-- 登录方式切换选项卡 -->
+            <div class="login-tabs">
+                <button id="tabCode" class="tab-btn active" data-tab="code">验证码登录</button>
+                <button id="tabPassword" class="tab-btn" data-tab="password">密码登录</button>
+            </div>
+            
             <div class="form-group">
                 <label for="phone">手机号码</label>
                 <input type="tel" id="phone" placeholder="请输入手机号码" required>
             </div>
-            <div class="form-group">
-                <label for="code">验证码</label>
-                <div class="code-input-group">
-                    <input type="text" id="code" placeholder="请输入验证码" required>
-                    <button id="sendCode" class="btn-code">发送验证码</button>
+            
+            <!-- 验证码登录表单 -->
+            <div id="codeLoginForm" class="login-form active">
+                <div class="form-group">
+                    <label for="code">验证码</label>
+                    <div class="code-input-group">
+                        <input type="text" id="code" placeholder="请输入验证码" required>
+                        <button id="sendCode" class="btn-code">发送验证码</button>
+                    </div>
                 </div>
             </div>
+            
+            <!-- 密码登录表单 -->
+            <div id="passwordLoginForm" class="login-form">
+                <div class="form-group">
+                    <label for="password">密码</label>
+                    <input type="password" id="password" placeholder="请输入密码" required>
+                </div>
+                <div class="form-group" style="text-align: right;">
+                    <a href="#" style="font-size: 14px; color: #3498db; text-decoration: none;">忘记密码？</a>
+                </div>
+            </div>
+            
             <button id="loginBtn" class="btn-primary">登录</button>
             <p id="loginError" class="error-message"></p>
         </div>

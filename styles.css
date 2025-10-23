@@ -48,6 +48,43 @@ body {
     color: #2c3e50;
 }
 
+/* 登录选项卡样式 */
+.login-tabs {
+    display: flex;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #ddd;
+}
+
+.tab-btn {
+    padding: 10px 20px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 16px;
+    color: #666;
+    border-bottom: 2px solid transparent;
+    transition: all 0.3s;
+}
+
+.tab-btn.active {
+    color: #3498db;
+    border-bottom-color: #3498db;
+    font-weight: 500;
+}
+
+.tab-btn:hover:not(.active) {
+    color: #3498db;
+}
+
+/* 登录表单样式 */
+.login-form {
+    display: none;
+}
+
+.login-form.active {
+    display: block;
+}
+
 .form-group {
     margin-bottom: 20px;
 }

@@ -49,10 +49,14 @@ function bindEvents() {
     
     // 退出登录按钮
     document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+    
+    // 登录选项卡切换
+    document.getElementById('tabCode').addEventListener('click', () => switchLoginTab('code'));
+    document.getElementById('tabPassword').addEventListener('click', () => switchLoginTab('password'));
 }
 
 // 发送验证码
-function sendVerificationCode() {
+async function sendVerificationCode() {
     const phoneInput = document.getElementById('phone');
     const phone = phoneInput.value.trim();
     const sendCodeBtn = document.getElementById('sendCode');
@@ -67,69 +71,175 @@ function sendVerificationCode() {
     // 隐藏错误信息
     loginError.textContent = '';
     
-    // 模拟发送验证码
-    console.log('发送验证码到手机号:', phone);
-    
-    // 倒计时功能
-    let countdown = 60;
-    sendCodeBtn.disabled = true;
-    sendCodeBtn.textContent = `${countdown}秒后重新发送`;
-    
-    const timer = setInterval(() => {
-        countdown--;
+    try {
+        // 调用后端发送验证码接口
+        await sendVerificationCodeAPI(phone);
+        
+        // 倒计时功能
+        let countdown = 60;
+        sendCodeBtn.disabled = true;
         sendCodeBtn.textContent = `${countdown}秒后重新发送`;
         
-        if (countdown <= 0) {
-            clearInterval(timer);
-            sendCodeBtn.disabled = false;
-            sendCodeBtn.textContent = '发送验证码';
-        }
-    }, 1000);
+        const timer = setInterval(() => {
+            countdown--;
+            sendCodeBtn.textContent = `${countdown}秒后重新发送`;
+            
+            if (countdown <= 0) {
+                clearInterval(timer);
+                sendCodeBtn.disabled = false;
+                sendCodeBtn.textContent = '发送验证码';
+            }
+        }, 1000);
+        
+        // 模拟验证码为 '123456'
+        alert('验证码已发送，演示环境请输入: 123456');
+    } catch (error) {
+        console.error('发送验证码失败:', error);
+        loginError.textContent = '发送验证码失败，请稍后重试';
+    }
+}
+
+// 发送验证码API调用
+async function sendVerificationCodeAPI(phone) {
+    try {
+        // 这里可以调用实际的后端发送验证码接口
+        // 为了演示，暂时只打印日志
+        console.log('发送验证码到手机号:', phone);
+        
+        // 模拟API调用
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                resolve({ success: true });
+            }, 500);
+        });
+    } catch (error) {
+        console.error('调用发送验证码接口失败:', error);
+        throw error;
+    }
+}
+
+// 切换登录选项卡
+function switchLoginTab(tab) {
+    // 更新选项卡状态
+    document.getElementById('tabCode').classList.remove('active');
+    document.getElementById('tabPassword').classList.remove('active');
+    document.getElementById(`tab${tab.charAt(0).toUpperCase() + tab.slice(1)}`).classList.add('active');
     
-    // 模拟验证码为 '123456'
-    alert('验证码已发送，演示环境请输入: 123456');
+    // 更新表单显示
+    document.getElementById('codeLoginForm').classList.remove('active');
+    document.getElementById('passwordLoginForm').classList.remove('active');
+    document.getElementById(`${tab}LoginForm`).classList.add('active');
+    
+    // 清除错误信息
+    document.getElementById('loginError').textContent = '';
 }
 
 // 处理登录
-function handleLogin() {
+async function handleLogin() {
     const phone = document.getElementById('phone').value.trim();
-    const code = document.getElementById('code').value.trim();
     const loginError = document.getElementById('loginError');
     
-    // 验证输入
+    // 验证手机号
     if (!phone) {
         loginError.textContent = '请输入手机号码';
         return;
     }
     
-    if (!code) {
-        loginError.textContent = '请输入验证码';
-        return;
+    // 判断当前登录方式
+    const isCodeLogin = document.getElementById('codeLoginForm').classList.contains('active');
+    
+    try {
+        let response;
+        
+        if (isCodeLogin) {
+            // 验证码登录
+            const code = document.getElementById('code').value.trim();
+            if (!code) {
+                loginError.textContent = '请输入验证码';
+                return;
+            }
+            
+            // 演示环境验证码验证
+            if (code !== '123456') {
+                loginError.textContent = '验证码错误';
+                return;
+            }
+            
+            // 模拟登录成功（实际环境应调用API）
+            response = { success: true, data: { phone } };
+        } else {
+            // 密码登录
+            const password = document.getElementById('password').value.trim();
+            if (!password) {
+                loginError.textContent = '请输入密码';
+                return;
+            }
+            
+            // 调用后端登录接口
+            response = await loginWithPassword(phone, password);
+        }
+        
+        // 处理登录结果
+        if (response.success) {
+            // 登录成功，保存用户信息
+            localStorage.setItem('userPhone', response.data.phone);
+            
+            // 更新界面
+            document.getElementById('userPhone').textContent = formatPhone(response.data.phone);
+            const loginModal = document.getElementById('loginModal');
+            loginModal.classList.add('hidden');
+            loginModal.classList.remove('active');
+            document.getElementById('mainContainer').classList.remove('hidden');
+            
+            // 加载模拟笔记数据
+            loadMockNotes();
+            // 生成侧边栏索引
+            generateSidebarIndex();
+            // 默认加载第一个笔记
+            if (notes.length > 0) {
+                loadNote(notes[0].id);
+            }
+        } else {
+            // 登录失败
+            loginError.textContent = response.message || '登录失败，请重试';
+        }
+    } catch (error) {
+        console.error('登录请求失败:', error);
+        loginError.textContent = '网络错误，请稍后重试';
     }
-    
-    // 模拟验证码验证（演示环境中验证码为 '123456'）
-    if (code !== '123456') {
-        loginError.textContent = '验证码错误';
-        return;
-    }
-    
-    // 登录成功，保存用户信息
-    localStorage.setItem('userPhone', phone);
-    
-    // 更新界面
-    document.getElementById('userPhone').textContent = formatPhone(phone);
-    const loginModal = document.getElementById('loginModal');
-    loginModal.classList.add('hidden');
-    loginModal.classList.remove('active');
-    document.getElementById('mainContainer').classList.remove('hidden');
-    
-    // 加载模拟笔记数据
-    loadMockNotes();
-    // 生成侧边栏索引
-    generateSidebarIndex();
-    // 默认加载第一个笔记
-    if (notes.length > 0) {
-        loadNote(notes[0].id);
+}
+
+// 密码登录API调用
+async function loginWithPassword(phone, password) {
+    try {
+        // 调用后端登录接口
+        const response = await fetch('http://localhost:8080/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                phone,
+                password,
+                type: 'password' // 标识是密码登录
+            }),
+            // 设置超时时间为5秒
+            signal: AbortSignal.timeout(5000)
+        });
+        
+        if (!response.ok) {
+            throw new Error('网络响应异常');
+        }
+        
+        return await response.json();
+    } catch (error) {
+        console.error('调用登录接口失败:', error);
+        
+        // 当后端无响应时，提示密码错误
+        return {
+            success: false,
+            message: '密码错误'
+        };
     }
 }
 
