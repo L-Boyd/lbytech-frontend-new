@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学习笔记展示平台</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js/styles/github.css">
+</head>
+<body>
+    <!-- 登录模态框 -->
+    <div id="loginModal" class="modal active">
+        <div class="modal-content">
+            <h2>欢迎登录学习笔记平台</h2>
+            <div class="form-group">
+                <label for="phone">手机号码</label>
+                <input type="tel" id="phone" placeholder="请输入手机号码" required>
+            </div>
+            <div class="form-group">
+                <label for="code">验证码</label>
+                <div class="code-input-group">
+                    <input type="text" id="code" placeholder="请输入验证码" required>
+                    <button id="sendCode" class="btn-code">发送验证码</button>
+                </div>
+            </div>
+            <button id="loginBtn" class="btn-primary">登录</button>
+            <p id="loginError" class="error-message"></p>
+        </div>
+    </div>
+
+    <!-- 主容器 -->
+    <div id="mainContainer" class="hidden">
+        <!-- 顶部导航栏 -->
+        <header>
+            <h1>学习笔记平台</h1>
+            <div class="user-info">
+                <span id="userPhone">138****1234</span>
+                <button id="logoutBtn" class="btn-logout">退出</button>
+            </div>
+        </header>
+
+        <!-- 主内容区域 -->
+        <div class="content-wrapper">
+            <!-- 左侧导航 -->
+            <aside id="sidebar">
+                <div class="sidebar-header">
+                    <h2>目录索引</h2>
+                </div>
+                <nav id="noteNav">
+                    <ul id="navList">
+                        <!-- 笔记索引将通过JavaScript动态生成 -->
+                    </ul>
+                </nav>
+            </aside>
+
+            <!-- 右侧内容 -->
+            <main id="content">
+                <div id="markdownContent">
+                    <!-- Markdown内容将在这里渲染 -->
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
