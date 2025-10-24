@@ -94,9 +94,13 @@
         <!-- 顶部导航栏 -->
         <header>
             <h1>学习笔记平台</h1>
-            <div class="user-info">
-                <span id="userEmail">user@example.com</span>
-                <button id="logoutBtn" class="btn-logout">退出</button>
+                <div class="user-info">
+                <div class="dropdown">
+                    <span id="userEmail" class="dropdown-toggle"></span>
+                    <div id="userDropdown" class="dropdown-menu hidden">
+                        <button id="logoutBtn" class="dropdown-item">退出</button>
+                    </div>
+                </div>
             </div>
         </header>
 

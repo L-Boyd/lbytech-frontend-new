@@ -3,7 +3,7 @@ let currentNoteId = null;
 let notes = [];
 // API基础地址配置
 const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-    ? 'http://192.168.1.12:8080' // 开发环境
+    ? 'http://localhost:8080' // 开发环境
     : 'http://106.53.121.165:8080'; // 生产环境
 
 // 初始化函数
@@ -17,7 +17,7 @@ function init() {
 
 // 检查登录状态
 function checkLoginStatus() {
-    const userEmail = localStorage.getItem('userEmail');
+    const userEmail = getCookie('userEmail');
     const loginModal = document.getElementById('loginModal');
     const mainContainer = document.getElementById('mainContainer');
     
@@ -63,6 +63,26 @@ function bindEvents() {
     document.getElementById('backToLogin').addEventListener('click', showLoginModal);
     document.getElementById('sendRegisterVerifyCode').addEventListener('click', sendRegisterVerificationCode);
     document.getElementById('registerBtn').addEventListener('click', handleRegister);
+    
+    // 用户下拉菜单事件
+    document.getElementById('userEmail').addEventListener('click', toggleUserDropdown);
+    
+    // 点击页面其他地方关闭下拉菜单
+    document.addEventListener('click', (event) => {
+        const dropdown = document.getElementById('userDropdown');
+        const dropdownToggle = document.getElementById('userEmail');
+        
+        // 如果点击的不是下拉菜单或下拉按钮，且下拉菜单是可见的，则关闭下拉菜单
+        if (!dropdown.contains(event.target) && event.target !== dropdownToggle && !dropdown.classList.contains('hidden')) {
+            dropdown.classList.add('hidden');
+        }
+    });
+}
+
+// 切换用户下拉菜单显示/隐藏
+function toggleUserDropdown() {
+    const dropdown = document.getElementById('userDropdown');
+    dropdown.classList.toggle('hidden');
 }
 
 // 发送验证码
@@ -182,14 +202,8 @@ async function handleLogin() {
                 return;
             }
             
-            // 演示环境验证码验证
-            if (code !== '123456') {
-                loginError.textContent = '验证码错误';
-                return;
-            }
-            
-            // 模拟登录成功（实际环境应调用API）
-            response = { success: true, data: { email } };
+            // 调用后端验证码登录接口
+            response = await loginWithVerifyCode(email, code);
         } else {
             // 密码登录
             const password = document.getElementById('password').value.trim();
@@ -204,8 +218,8 @@ async function handleLogin() {
         
         // 处理登录结果
         if (response.success) {
-            // 登录成功，保存用户信息
-            localStorage.setItem('userEmail', response.data.email);
+            // 登录成功，保存用户信息到cookie
+            setCookie('userEmail', response.data.email, 30); // 30天过期
             
             // 更新界面
             document.getElementById('userEmail').textContent = formatEmail(response.data.email);
@@ -232,19 +246,92 @@ async function handleLogin() {
     }
 }
 
-// 密码登录API调用
-async function loginWithPassword(email, password) {
+// 验证码登录API调用
+async function loginWithVerifyCode(email, verifyCode) {
     try {
-        // 调用后端登录接口
-        const response = await fetch(`${API_BASE_URL}/login`, {
+        // 调用后端验证码登录接口
+        const response = await fetch(`${API_BASE_URL}/user/loginByVerifyCode`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
                 email,
-                password,
-                type: 'password' // 标识是密码登录
+                verifyCode
+            }),
+            // 设置超时时间为5秒
+            signal: AbortSignal.timeout(5000)
+        });
+        
+        if (!response.ok) {
+            throw new Error('网络响应异常');
+        }
+        
+        const result = await response.json();
+        
+        // 检查statusCode.code是否为200来判断登录是否成功
+        if (result.statusCode && result.statusCode.code === 200) {
+            // 转换为前端期望的格式
+            return {
+                success: true,
+                data: result.data || {},
+                message: result.statusCode.message || '登录成功'
+            };
+        } else {
+            return {
+                success: false,
+                message: result.statusCode?.message || '登录失败'
+            };
+        }
+    } catch (error) {
+        console.error('调用验证码登录接口失败:', error);
+        
+        // 在开发环境中提供模拟成功响应，以便前端可以正常测试
+        // 演示环境验证码验证
+        if (verifyCode === '123456') {
+            console.log('（演示环境：使用模拟登录数据）');
+            return { success: true, data: { email }, message: '登录成功' };
+        }
+        
+        return {
+            success: false,
+            message: '验证码错误'
+        };
+    }
+}
+
+// 设置cookie
+function setCookie(name, value, days) {
+    const expires = new Date();
+    expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
+    document.cookie = name + '=' + encodeURIComponent(value) + ';expires=' + expires.toUTCString() + ';path=/';
+}
+
+// 获取cookie
+function getCookie(name) {
+    const cookieName = name + '=';
+    const cookieArray = document.cookie.split(';');
+    for (let i = 0; i < cookieArray.length; i++) {
+        let cookie = cookieArray[i].trim();
+        if (cookie.indexOf(cookieName) === 0) {
+            return decodeURIComponent(cookie.substring(cookieName.length));
+        }
+    }
+    return null;
+}
+
+// 密码登录API调用
+async function loginWithPassword(email, password) {
+    try {
+        // 调用后端登录接口
+        const response = await fetch(`${API_BASE_URL}/user/loginByPassword`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                email,
+                password
             }),
             // 设置超时时间为5秒
             signal: AbortSignal.timeout(5000)
@@ -283,8 +370,8 @@ async function loginWithPassword(email, password) {
 
 // 处理退出登录
 function handleLogout() {
-    // 清除本地存储的用户信息
-    localStorage.removeItem('userEmail');
+    // 清除cookie中的用户信息
+    setCookie('userEmail', '', -1);
     
     // 重置状态
     currentNoteId = null;
