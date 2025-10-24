@@ -160,6 +160,24 @@ body {
     font-size: 14px;
 }
 
+/* 注册/登录链接样式 */
+.register-link, .login-link {
+    text-align: center;
+    margin-top: 15px;
+    font-size: 14px;
+}
+
+.register-link a, .login-link a {
+    color: #3498db;
+    text-decoration: none;
+    margin-left: 5px;
+    cursor: pointer;
+}
+
+.register-link a:hover, .login-link a:hover {
+    text-decoration: underline;
+}
+
 /* 主容器样式 */
 #mainContainer {
     display: flex;
@@ -193,7 +211,7 @@ header h1 {
     gap: 16px;
 }
 
-#userPhone {
+#userEmail {
     font-weight: 500;
 }
 

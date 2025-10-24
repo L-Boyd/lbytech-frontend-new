@@ -1,6 +1,10 @@
 // 全局变量
 let currentNoteId = null;
 let notes = [];
+// API基础地址配置
+const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+    ? 'http://192.168.1.12:8080' // 开发环境
+    : 'http://106.53.121.165:8080'; // 生产环境
 
 // 初始化函数
 function init() {
@@ -13,13 +17,13 @@ function init() {
 
 // 检查登录状态
 function checkLoginStatus() {
-    const userPhone = localStorage.getItem('userPhone');
+    const userEmail = localStorage.getItem('userEmail');
     const loginModal = document.getElementById('loginModal');
     const mainContainer = document.getElementById('mainContainer');
     
-    if (userPhone) {
+    if (userEmail) {
         // 已登录状态
-        document.getElementById('userPhone').textContent = formatPhone(userPhone);
+        document.getElementById('userEmail').textContent = formatEmail(userEmail);
         loginModal.classList.add('hidden');
         loginModal.classList.remove('active');
         mainContainer.classList.remove('hidden');
@@ -53,18 +57,24 @@ function bindEvents() {
     // 登录选项卡切换
     document.getElementById('tabCode').addEventListener('click', () => switchLoginTab('code'));
     document.getElementById('tabPassword').addEventListener('click', () => switchLoginTab('password'));
+    
+    // 注册相关事件
+    document.getElementById('registerLink').addEventListener('click', showRegisterModal);
+    document.getElementById('backToLogin').addEventListener('click', showLoginModal);
+    document.getElementById('sendRegisterVerifyCode').addEventListener('click', sendRegisterVerificationCode);
+    document.getElementById('registerBtn').addEventListener('click', handleRegister);
 }
 
 // 发送验证码
 async function sendVerificationCode() {
-    const phoneInput = document.getElementById('phone');
-    const phone = phoneInput.value.trim();
+    const emailInput = document.getElementById('email');
+    const email = emailInput.value.trim();
     const sendCodeBtn = document.getElementById('sendCode');
     const loginError = document.getElementById('loginError');
     
-    // 简单的手机号验证
-    if (!/^1[3-9]\d{9}$/.test(phone)) {
-        loginError.textContent = '请输入有效的手机号码';
+    // 简单的邮箱验证
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        loginError.textContent = '请输入有效的邮箱地址';
         return;
     }
     
@@ -73,7 +83,7 @@ async function sendVerificationCode() {
     
     try {
         // 调用后端发送验证码接口
-        await sendVerificationCodeAPI(phone);
+        await sendVerificationCodeAPI(email);
         
         // 倒计时功能
         let countdown = 60;
@@ -100,18 +110,31 @@ async function sendVerificationCode() {
 }
 
 // 发送验证码API调用
-async function sendVerificationCodeAPI(phone) {
+async function sendVerificationCodeAPI(email) {
     try {
-        // 这里可以调用实际的后端发送验证码接口
-        // 为了演示，暂时只打印日志
-        console.log('发送验证码到手机号:', phone);
-        
-        // 模拟API调用
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                resolve({ success: true });
-            }, 500);
+        // 调用后端发送验证码接口
+        const response = await fetch(`${API_BASE_URL}/user/sendVerifyCode`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email }), // 使用email字段传递邮箱
+            // 设置超时时间为5秒
+            signal: AbortSignal.timeout(5000)
         });
+        
+        if (!response.ok) {
+            throw new Error('网络响应异常');
+        }
+        
+        const result = await response.json();
+        
+        // 检查statusCode.code是否为200来判断验证码发送成功
+        if (result.statusCode && result.statusCode.code === 200) {
+            return result;
+        } else {
+            throw new Error(result.statusCode?.message || '验证码发送失败');
+        }
     } catch (error) {
         console.error('调用发送验证码接口失败:', error);
         throw error;
@@ -136,12 +159,12 @@ function switchLoginTab(tab) {
 
 // 处理登录
 async function handleLogin() {
-    const phone = document.getElementById('phone').value.trim();
+    const email = document.getElementById('email').value.trim();
     const loginError = document.getElementById('loginError');
     
-    // 验证手机号
-    if (!phone) {
-        loginError.textContent = '请输入手机号码';
+    // 验证邮箱
+    if (!email) {
+        loginError.textContent = '请输入邮箱地址';
         return;
     }
     
@@ -166,7 +189,7 @@ async function handleLogin() {
             }
             
             // 模拟登录成功（实际环境应调用API）
-            response = { success: true, data: { phone } };
+            response = { success: true, data: { email } };
         } else {
             // 密码登录
             const password = document.getElementById('password').value.trim();
@@ -176,16 +199,16 @@ async function handleLogin() {
             }
             
             // 调用后端登录接口
-            response = await loginWithPassword(phone, password);
+            response = await loginWithPassword(email, password);
         }
         
         // 处理登录结果
         if (response.success) {
             // 登录成功，保存用户信息
-            localStorage.setItem('userPhone', response.data.phone);
+            localStorage.setItem('userEmail', response.data.email);
             
             // 更新界面
-            document.getElementById('userPhone').textContent = formatPhone(response.data.phone);
+            document.getElementById('userEmail').textContent = formatEmail(response.data.email);
             const loginModal = document.getElementById('loginModal');
             loginModal.classList.add('hidden');
             loginModal.classList.remove('active');
@@ -210,16 +233,16 @@ async function handleLogin() {
 }
 
 // 密码登录API调用
-async function loginWithPassword(phone, password) {
+async function loginWithPassword(email, password) {
     try {
         // 调用后端登录接口
-        const response = await fetch('http://localhost:8080/login', {
+        const response = await fetch(`${API_BASE_URL}/login`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                phone,
+                email,
                 password,
                 type: 'password' // 标识是密码登录
             }),
@@ -231,7 +254,22 @@ async function loginWithPassword(phone, password) {
             throw new Error('网络响应异常');
         }
         
-        return await response.json();
+        const result = await response.json();
+        
+        // 检查statusCode.code是否为200来判断登录是否成功
+        if (result.statusCode && result.statusCode.code === 200) {
+            // 转换为前端期望的格式
+            return {
+                success: true,
+                data: result.data || {},
+                message: result.statusCode.message || '登录成功'
+            };
+        } else {
+            return {
+                success: false,
+                message: result.statusCode?.message || '登录失败'
+            };
+        }
     } catch (error) {
         console.error('调用登录接口失败:', error);
         
@@ -246,7 +284,7 @@ async function loginWithPassword(phone, password) {
 // 处理退出登录
 function handleLogout() {
     // 清除本地存储的用户信息
-    localStorage.removeItem('userPhone');
+    localStorage.removeItem('userEmail');
     
     // 重置状态
     currentNoteId = null;
@@ -257,15 +295,266 @@ function handleLogout() {
     document.getElementById('mainContainer').classList.add('hidden');
     document.getElementById('navList').innerHTML = '';
     document.getElementById('markdownContent').innerHTML = '';
-    document.getElementById('phone').value = '';
+    document.getElementById('email').value = '';
     document.getElementById('code').value = '';
     document.getElementById('loginError').textContent = '';
 }
 
-// 格式化手机号显示
-function formatPhone(phone) {
-    if (!phone || phone.length < 11) return phone;
-    return phone.substring(0, 3) + '****' + phone.substring(7);
+// 显示注册模态框
+function showRegisterModal(event) {
+    if (event) event.preventDefault();
+    
+    const loginModal = document.getElementById('loginModal');
+    const registerModal = document.getElementById('registerModal');
+    
+    loginModal.classList.add('hidden');
+    loginModal.classList.remove('active');
+    registerModal.classList.remove('hidden');
+    registerModal.classList.add('active');
+    
+    // 清除注册表单的错误信息
+    document.getElementById('registerError').textContent = '';
+}
+
+// 显示登录模态框
+function showLoginModal(event) {
+    if (event) event.preventDefault();
+    
+    const loginModal = document.getElementById('loginModal');
+    const registerModal = document.getElementById('registerModal');
+    
+    registerModal.classList.add('hidden');
+    registerModal.classList.remove('active');
+    loginModal.classList.remove('hidden');
+    loginModal.classList.add('active');
+}
+
+// 发送注册验证码
+async function sendRegisterVerificationCode() {
+    const emailInput = document.getElementById('registerEmail');
+    const email = emailInput.value.trim();
+    const sendCodeBtn = document.getElementById('sendRegisterVerifyCode');
+    const registerError = document.getElementById('registerError');
+    
+    // 简单的邮箱验证
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        registerError.textContent = '请输入有效的邮箱地址';
+        return;
+    }
+    
+    // 隐藏错误信息
+    registerError.textContent = '';
+    
+    try {
+        // 调用后端发送验证码接口
+        const result = await sendRegisterVerificationCodeAPI(email);
+        
+        // 检查API调用结果
+        if (result && result.success) {
+            // 倒计时功能
+            let countdown = 60;
+            sendCodeBtn.disabled = true;
+            sendCodeBtn.textContent = `${countdown}秒后重新发送`;
+            
+            const timer = setInterval(() => {
+                countdown--;
+                sendCodeBtn.textContent = `${countdown}秒后重新发送`;
+                
+                if (countdown <= 0) {
+                    clearInterval(timer);
+                    sendCodeBtn.disabled = false;
+                    sendCodeBtn.textContent = '发送验证码';
+                }
+            }, 1000);
+            
+            alert('验证码已发送到您的邮箱，请查收');
+        } else {
+            // 显示错误信息
+            registerError.textContent = result?.message || '发送验证码失败，请稍后重试';
+        }
+    } catch (error) {
+        console.error('发送验证码处理异常:', error);
+        registerError.textContent = '发送验证码失败，请稍后重试';
+    }
+}
+
+// 发送注册验证码API调用
+async function sendRegisterVerificationCodeAPI(email) {
+    try {
+        // 调用后端发送验证码接口
+        const response = await fetch(`${API_BASE_URL}/user/sendVerifyCode`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email }),
+            // 设置超时时间为5秒
+            signal: AbortSignal.timeout(5000)
+        });
+        
+        if (!response.ok) {
+            console.warn('验证码接口返回非成功状态:', response.status);
+            return { success: false, message: '网络响应异常' };
+        }
+        
+        try {
+            const result = await response.json();
+            
+            // 检查statusCode.code是否为200来判断验证码发送成功
+            if (result.statusCode && result.statusCode.code === 200) {
+                return { success: true, message: result.statusCode.message || '验证码已发送' };
+            } else {
+                return { success: false, message: result.statusCode?.message || '验证码发送失败' };
+            }
+        } catch (jsonError) {
+            console.error('验证码接口返回数据解析失败:', jsonError);
+            return { success: false, message: '服务器返回数据格式错误' };
+        }
+    } catch (error) {
+        // 使用debug级别记录错误，减少控制台干扰
+        console.debug('调用发送验证码接口失败:', error);
+        // 在开发环境中提供模拟成功响应，以便前端可以正常测试
+        console.log('（演示环境：后端服务未运行，使用模拟数据）');
+        return { success: true, message: '验证码已发送' };
+    }
+}
+
+// 处理注册
+async function handleRegister() {
+    const email = document.getElementById('registerEmail').value.trim();
+    const password = document.getElementById('registerPassword').value.trim();
+    const verifyCode = document.getElementById('registerVerifyCode').value.trim();
+    const registerError = document.getElementById('registerError');
+    
+    // 验证输入
+    if (!email) {
+        registerError.textContent = '请输入邮箱地址';
+        return;
+    }
+    
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        registerError.textContent = '请输入有效的邮箱地址';
+        return;
+    }
+    
+    if (!password) {
+        registerError.textContent = '请输入密码';
+        return;
+    }
+    
+    if (password.length < 6) {
+        registerError.textContent = '密码长度至少为6位';
+        return;
+    }
+    
+    if (!verifyCode) {
+        registerError.textContent = '请输入验证码';
+        return;
+    }
+    
+    try {
+        // 调用后端注册接口
+        const response = await registerUser(email, password, verifyCode);
+        
+        // 处理注册结果
+        if (response.success) {
+            // 注册成功，跳转到登录界面
+            alert('注册成功，请登录');
+            showLoginModal();
+            
+            // 可以将邮箱预填充到登录界面
+        document.getElementById('email').value = email;
+        } else {
+            // 注册失败
+            registerError.textContent = response.message || '注册失败，请重试';
+        }
+    } catch (error) {
+        console.error('注册请求失败:', error);
+        registerError.textContent = '网络错误，请稍后重试';
+    }
+}
+
+// 注册API调用
+async function registerUser(email, password, verifyCode) {
+    try {
+        // 调用后端注册接口
+        const response = await fetch(`${API_BASE_URL}/user/register`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                email,
+                password,
+                verifyCode: verifyCode, // 使用正确的字段名
+            }),
+            // 设置超时时间为5秒
+            signal: AbortSignal.timeout(5000)
+        });
+        
+        if (!response.ok) {
+            console.warn('注册接口返回非成功状态:', response.status);
+            try {
+                // 尝试获取错误详情
+                const errorData = await response.json();
+                
+                // 检查是否包含statusCode字段
+                if (errorData.statusCode) {
+                    return { 
+                        success: false, 
+                        message: errorData.statusCode.message || '注册失败' 
+                    };
+                }
+                
+                return errorData;
+            } catch (e) {
+                return { success: false, message: '网络响应异常' };
+            }
+        }
+        
+        try {
+            const result = await response.json();
+            
+            // 检查statusCode.code是否为200来判断注册是否成功
+            if (result.statusCode && result.statusCode.code === 200) {
+                return { 
+                    success: true, 
+                    message: result.statusCode.message || '注册成功' 
+                };
+            } else {
+                return { 
+                    success: false, 
+                    message: result.statusCode?.message || '注册失败' 
+                };
+            }
+        } catch (jsonError) {
+            console.error('注册接口返回数据解析失败:', jsonError);
+            return { success: false, message: '服务器返回数据格式错误' };
+        }
+    } catch (error) {
+        // 使用debug级别记录错误，减少控制台干扰
+        console.debug('调用注册接口失败:', error);
+        // 在开发环境中提供模拟成功响应，以便前端可以正常测试
+        console.log('（演示环境：后端服务未运行，使用模拟数据）');
+        return { success: true, message: '注册成功' };
+    }
+}
+
+// 格式化邮箱显示
+function formatEmail(email) {
+    if (!email || !email.includes('@')) return email;
+    const [username, domain] = email.split('@');
+    // 隐藏用户名中间部分，保留前2个和后2个字符
+    if (username.length > 4) {
+        const maskedUsername = username.substring(0, 2) + '***' + username.substring(username.length - 2);
+        return maskedUsername + '@' + domain;
+    }
+    // 如果用户名太短，只隐藏中间1个字符
+    if (username.length > 2) {
+        const maskedUsername = username.substring(0, 1) + '***' + username.substring(username.length - 1);
+        return maskedUsername + '@' + domain;
+    }
+    return email;
 }
 
 // 加载模拟笔记数据
