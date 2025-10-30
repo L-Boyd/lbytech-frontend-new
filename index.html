@@ -44,7 +44,7 @@
                     <input type="password" id="password" placeholder="请输入密码" required>
                 </div>
                 <div class="form-group" style="text-align: right;">
-                    <a href="#" style="font-size: 14px; color: #3498db; text-decoration: none;">忘记密码？</a>
+                    <a href="#" id="forgotPasswordLink" style="font-size: 14px; color: #3498db; text-decoration: none;">忘记密码？</a>
                 </div>
             </div>
             
@@ -85,6 +85,38 @@
             <div class="login-link">
                 <span>已有账号？</span>
                 <a href="#" id="backToLogin">返回登录</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 忘记密码模态框 -->
+    <div id="forgotPasswordModal" class="modal hidden">
+        <div class="modal-content">
+            <h2>重置密码</h2>
+            
+            <div class="form-group">
+                <label for="forgotEmail">邮箱</label>
+                <input type="email" id="forgotEmail" placeholder="请输入注册时的邮箱地址" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="forgotVerifyCode">验证码</label>
+                <div class="code-input-group">
+                    <input type="text" id="forgotVerifyCode" placeholder="请输入验证码" required>
+                    <button id="sendForgotVerifyCode" class="btn-code">发送验证码</button>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="newPassword">新密码</label>
+                <input type="password" id="newPassword" placeholder="请输入新密码" required>
+            </div>
+            
+            <button id="changePasswordBtn" class="btn-primary">确认修改</button>
+            <p id="forgotPasswordError" class="error-message"></p>
+            <div class="login-link">
+                <span></span>
+                <a href="#" id="backToLoginFromForgot">返回登录</a>
             </div>
         </div>
     </div>

@@ -64,6 +64,12 @@ function bindEvents() {
     document.getElementById('sendRegisterVerifyCode').addEventListener('click', sendRegisterVerificationCode);
     document.getElementById('registerBtn').addEventListener('click', handleRegister);
     
+    // 忘记密码相关事件
+    document.getElementById('forgotPasswordLink').addEventListener('click', showForgotPasswordModal);
+    document.getElementById('backToLoginFromForgot').addEventListener('click', showLoginModal);
+    document.getElementById('sendForgotVerifyCode').addEventListener('click', sendForgotVerificationCode);
+    document.getElementById('changePasswordBtn').addEventListener('click', handleChangePassword);
+    
     // 用户下拉菜单事件
     document.getElementById('userEmail').addEventListener('click', toggleUserDropdown);
     
@@ -403,17 +409,124 @@ function showRegisterModal(event) {
     document.getElementById('registerError').textContent = '';
 }
 
+// 显示忘记密码模态框
+function showForgotPasswordModal(event) {
+    if (event) event.preventDefault();
+    
+    const loginModal = document.getElementById('loginModal');
+    const forgotPasswordModal = document.getElementById('forgotPasswordModal');
+    
+    loginModal.classList.add('hidden');
+    loginModal.classList.remove('active');
+    forgotPasswordModal.classList.remove('hidden');
+    forgotPasswordModal.classList.add('active');
+    
+    // 清除错误信息
+    document.getElementById('forgotPasswordError').textContent = '';
+}
+
+// 发送忘记密码验证码
+function sendForgotVerificationCode() {
+    const email = document.getElementById('forgotEmail').value;
+    if (!email) {
+        document.getElementById('forgotPasswordError').textContent = '请输入邮箱地址';
+        return;
+    }
+    
+    // 隐藏错误信息
+    document.getElementById('forgotPasswordError').textContent = '';
+    
+    // 禁用按钮并开始倒计时
+    const button = document.getElementById('sendForgotVerifyCode');
+    let countdown = 60;
+    button.disabled = true;
+    button.textContent = `${countdown}秒后重新发送`;
+    
+    const timer = setInterval(() => {
+        countdown--;
+        button.textContent = `${countdown}秒后重新发送`;
+        if (countdown <= 0) {
+            clearInterval(timer);
+            button.disabled = false;
+            button.textContent = '发送验证码';
+        }
+    }, 1000);
+    
+    // 调用发送验证码API
+    sendVerificationCodeAPI(email);
+}
+
+// 修改密码
+async function handleChangePassword() {
+    const email = document.getElementById('forgotEmail').value;
+    const verifyCode = document.getElementById('forgotVerifyCode').value;
+    const newPassword = document.getElementById('newPassword').value;
+    
+    // 验证输入
+    if (!email) {
+        document.getElementById('forgotPasswordError').textContent = '请输入邮箱地址';
+        return;
+    }
+    if (!verifyCode) {
+        document.getElementById('forgotPasswordError').textContent = '请输入验证码';
+        return;
+    }
+    if (!newPassword) {
+        document.getElementById('forgotPasswordError').textContent = '请输入新密码';
+        return;
+    }
+    
+    // 隐藏错误信息
+    document.getElementById('forgotPasswordError').textContent = '';
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/user/changePassword`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                email,
+                verifyCode,
+                newPassword
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.statusCode && data.statusCode.code === 200) {
+            // 密码修改成功
+            alert('密码修改成功，请使用新密码登录');
+            // 返回登录页面
+            document.getElementById('forgotPasswordModal').classList.add('hidden');
+            document.getElementById('loginModal').classList.remove('hidden');
+        } else {
+            // 密码修改失败
+            document.getElementById('forgotPasswordError').textContent = data.statusCode?.message || '修改密码失败，请重试';
+        }
+    } catch (error) {
+        console.error('修改密码时发生错误:', error);
+        document.getElementById('forgotPasswordError').textContent = '网络错误，请稍后重试';
+    }
+}
+
 // 显示登录模态框
 function showLoginModal(event) {
     if (event) event.preventDefault();
     
     const loginModal = document.getElementById('loginModal');
     const registerModal = document.getElementById('registerModal');
+    const forgotPasswordModal = document.getElementById('forgotPasswordModal');
     
     registerModal.classList.add('hidden');
     registerModal.classList.remove('active');
+    forgotPasswordModal.classList.add('hidden');
+    forgotPasswordModal.classList.remove('active');
     loginModal.classList.remove('hidden');
     loginModal.classList.add('active');
+    
+    // 清除错误信息
+    document.getElementById('loginError').textContent = '';
 }
 
 // 发送注册验证码

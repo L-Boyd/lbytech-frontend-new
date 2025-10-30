@@ -48,6 +48,19 @@ body {
     color: #2c3e50;
 }
 
+/* 忘记密码模态框样式增强 */
+#forgotPasswordModal .modal-content {
+    max-width: 400px;
+}
+
+#forgotPasswordModal .form-group {
+    margin-bottom: 20px;
+}
+
+#forgotPasswordModal .btn-primary {
+    margin-top: 10px;
+}
+
 /* 登录选项卡样式 */
 .login-tabs {
     display: flex;
