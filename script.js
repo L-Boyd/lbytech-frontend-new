@@ -3,8 +3,8 @@ let currentNoteId = null;
 let notes = [];
 // API基础地址配置
 const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-    ? 'http://localhost:8080' // 开发环境
-    : 'http://106.53.121.165:8080'; // 生产环境
+    ? 'http://localhost:8080/api' // 开发环境，已添加/api前缀
+    : 'http://106.53.121.165:8080/api'; // 生产环境，已添加/api前缀
 
 // 初始化函数
 function init() {
