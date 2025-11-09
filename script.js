@@ -138,6 +138,121 @@ function bindEvents() {
     });
 }
 
+// 注入目录相关样式
+function injectTocStyles() {
+    // 检查样式是否已存在
+    let styleElement = document.getElementById('toc-styles');
+    if (!styleElement) {
+        styleElement = document.createElement('style');
+        styleElement.id = 'toc-styles';
+        document.head.appendChild(styleElement);
+    }
+    
+    styleElement.textContent = `
+        /* 目录箭头样式 */
+        .toc-arrow {
+            cursor: pointer;
+            display: inline-block;
+            margin-right: 8px;
+            font-size: 12px;
+            width: 12px;
+            height: 12px;
+            text-align: center;
+            line-height: 12px;
+            vertical-align: middle;
+            /* 确保箭头在链接内部 */
+            position: relative;
+        }
+        
+        /* 箭头方向 */
+        .arrow-right {
+            transform: rotate(0deg);
+        }
+        
+        .arrow-down {
+            transform: rotate(90deg);
+        }
+        
+        /* 折叠状态 */
+        .collapsed {
+            display: none;
+        }
+        
+        /* 目录层级样式 */
+        .toc-h2-list {
+            margin-left: 20px;
+            margin-top: 5px;
+            margin-bottom: 5px;
+        }
+        
+        .toc-h3-list {
+            margin-left: 20px;
+            margin-top: 5px;
+            margin-bottom: 5px;
+        }
+        
+        .toc-h4-list {
+            margin-left: 20px;
+            margin-top: 5px;
+            margin-bottom: 5px;
+        }
+        
+        .toc-h5-list {
+            margin-left: 20px;
+            margin-top: 5px;
+            margin-bottom: 5px;
+        }
+        
+        .toc-h6-list {
+            margin-left: 20px;
+            margin-top: 5px;
+            margin-bottom: 5px;
+        }
+        
+        /* 目录链接样式 - 确保箭头在链接内部 */
+        #noteNav a {
+            display: block;
+            padding: 4px 12px;
+            margin: 2px 0;
+            color: #333;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            width: 100%;
+            box-sizing: border-box;
+            /* 确保链接内容不会溢出 */
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        #noteNav a:hover {
+            background-color: #f0f0f0;
+        }
+        
+        #noteNav a.active {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        /* 目录项样式 */
+        #noteNav li {
+            margin: 3px 0;
+            list-style-type: none;
+        }
+        
+        /* 处理箭头点击事件的样式 */
+        #noteNav a .toc-arrow {
+            pointer-events: auto;
+        }
+        
+        /* 确保箭头在链接内显示正确 */
+        #noteNav a[data-has-children="true"] {
+            padding-left: 12px;
+        }
+    `;
+}
+
 // 切换用户下拉菜单显示状态
 function toggleUserDropdown() {
     const dropdown = document.getElementById('userDropdown');
@@ -827,7 +942,7 @@ async function handleRegister() {
             showLoginModal();
             
             // 可以将邮箱预填充到登录界面
-        document.getElementById('email').value = email;
+            document.getElementById('email').value = email;
         } else {
             // 注册失败
             registerError.textContent = response.message || '注册失败，请重试';
@@ -1124,8 +1239,8 @@ function generateSidebarIndex() {
         navList.appendChild(li);
     }
     
-    // 获取当前渲染的Markdown内容中的标题
-    const headings = document.querySelectorAll('#markdownContent h1, #markdownContent h2');
+    // 获取当前渲染的Markdown内容中的标题，包括H1到H6
+    const headings = document.querySelectorAll('#markdownContent h1, #markdownContent h2, #markdownContent h3, #markdownContent h4, #markdownContent h5, #markdownContent h6');
     
     if (headings.length === 0) {
         // 如果没有标题，显示提示信息
@@ -1138,86 +1253,230 @@ function generateSidebarIndex() {
         return;
     }
     
-    let currentH1 = null;
-    let h1Li = null;
-    let h2Container = null;
+    // 使用栈来管理目录层级关系
+    const headingStack = [];
     
     // 遍历所有标题，构建层级目录
     headings.forEach((heading) => {
         const headingId = heading.id;
         const headingText = heading.textContent.trim();
+        const headingLevel = parseInt(heading.tagName.substring(1));
         
-        if (heading.tagName === 'H1') {
-            // 创建一级目录项
-            currentH1 = headingId;
-            h1Li = document.createElement('li');
-            const h1Link = document.createElement('a');
-            
-            h1Link.href = `#${headingId}`;
-            h1Link.textContent = headingText;
-            h1Link.classList.add('toc-h1');
-            h1Link.setAttribute('data-heading-id', headingId);
-            
-            // 添加点击事件 - 滚动到对应标题
-            h1Link.addEventListener('click', (e) => {
-                e.preventDefault();
-                const targetId = h1Link.getAttribute('data-heading-id');
-                const targetElement = document.getElementById(targetId);
-                if (targetElement) {
-                    targetElement.scrollIntoView({ behavior: 'smooth' });
-                    
-                    // 更新活动状态
-                    document.querySelectorAll('#noteNav a').forEach(item => {
-                        item.classList.remove('active');
-                    });
-                    h1Link.classList.add('active');
-                }
-            });
-            
-            h1Li.appendChild(h1Link);
-            navList.appendChild(h1Li);
-            
-            // 创建二级目录容器
-            h2Container = document.createElement('ul');
-            h2Container.classList.add('toc-h2-list');
-            h1Li.appendChild(h2Container);
-            
-        } else if (heading.tagName === 'H2') {
-            // 创建二级目录项
-            const h2Li = document.createElement('li');
-            const h2Link = document.createElement('a');
-            
-            h2Link.href = `#${headingId}`;
-            h2Link.textContent = headingText;
-            h2Link.classList.add('toc-h2');
-            h2Link.setAttribute('data-heading-id', headingId);
-            
-            // 添加点击事件 - 滚动到对应标题
-            h2Link.addEventListener('click', (e) => {
-                e.preventDefault();
-                const targetId = h2Link.getAttribute('data-heading-id');
-                const targetElement = document.getElementById(targetId);
-                if (targetElement) {
-                    targetElement.scrollIntoView({ behavior: 'smooth' });
-                    
-                    // 更新活动状态
-                    document.querySelectorAll('#noteNav a').forEach(item => {
-                        item.classList.remove('active');
-                    });
-                    h2Link.classList.add('active');
-                }
-            });
-            
-            h2Li.appendChild(h2Link);
-            
-            // 如果没有一级标题容器，直接添加到navList
-            if (h2Container) {
-                h2Container.appendChild(h2Li);
-            } else {
-                navList.appendChild(h2Li);
+        // 创建目录项
+        const li = document.createElement('li');
+        const link = document.createElement('a');
+        link.href = `#${headingId}`;
+        link.textContent = headingText;
+        link.classList.add(`toc-h${headingLevel}`);
+        link.setAttribute('data-heading-id', headingId);
+        
+        // 添加点击事件 - 滚动到对应标题
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const targetId = link.getAttribute('data-heading-id');
+            const targetElement = document.getElementById(targetId);
+            if (targetElement) {
+                targetElement.scrollIntoView({ behavior: 'smooth' });
+                
+                // 更新活动状态
+                document.querySelectorAll('#noteNav a').forEach(item => {
+                    item.classList.remove('active');
+                });
+                link.classList.add('active');
             }
+        });
+        
+        // 对于非H6标题，添加箭头
+        let arrow = null;
+        if (headingLevel < 6) {
+            arrow = document.createElement('span');
+            arrow.classList.add('toc-arrow');
+            arrow.classList.add('arrow-right');
+            arrow.textContent = '▶';
+            arrow.style.display = 'none'; // 默认隐藏
+            
+            // 先清空链接内容，然后添加箭头和文本节点
+            link.textContent = '';
+            link.appendChild(arrow);
+            link.appendChild(document.createTextNode(headingText));
+            link.setAttribute('data-has-children', 'false');
         }
+        
+        li.appendChild(link);
+        
+        // 找到正确的父容器
+        let parentContainer = navList;
+        
+        // 从栈中找到合适的父级 - 移除所有大于等于当前层级的标题
+        while (headingStack.length > 0 && headingStack[headingStack.length - 1].level >= headingLevel) {
+            headingStack.pop();
+        }
+        
+        if (headingStack.length > 0) {
+            // 获取栈顶元素的子容器
+            const lastHeading = headingStack[headingStack.length - 1];
+            if (!lastHeading.subContainer) {
+                // 创建子容器
+                lastHeading.subContainer = document.createElement('ul');
+                lastHeading.subContainer.classList.add(`toc-h${lastHeading.level + 1}-list`);
+                lastHeading.subContainer.classList.add('collapsed');
+                lastHeading.li.appendChild(lastHeading.subContainer);
+                
+                // 显示箭头
+                if (lastHeading.arrow) {
+                    lastHeading.arrow.style.display = 'inline-block';
+                    // 将data-has-children属性设置在链接上而不是列表项上
+                    lastHeading.link.setAttribute('data-has-children', 'true');
+                }
+                
+                // 添加箭头点击事件 - 确保只控制当前标题的子容器
+                if (lastHeading.arrow) {
+                    lastHeading.arrow.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        // 只操作当前标题对应的子容器
+                        const subContainer = lastHeading.subContainer;
+                        if (subContainer) {
+                            const isCollapsed = subContainer.classList.toggle('collapsed');
+                            if (isCollapsed) {
+                                lastHeading.arrow.classList.remove('arrow-down');
+                                lastHeading.arrow.classList.add('arrow-right');
+                            } else {
+                                lastHeading.arrow.classList.remove('arrow-right');
+                                lastHeading.arrow.classList.add('arrow-down');
+                            }
+                        }
+                    });
+                }
+            }
+            parentContainer = lastHeading.subContainer;
+        }
+        
+        // 添加当前标题到父容器
+        parentContainer.appendChild(li);
+        
+        // 将当前标题加入栈中，包含link属性
+        headingStack.push({
+            level: headingLevel,
+            li: li,
+            link: link,  // 添加link属性，以便在后续代码中引用
+            arrow: arrow,
+            subContainer: null
+        });
     });
+    
+    // 注入目录相关样式
+    injectTocStyles();
+}
+
+// 注入目录相关样式
+function injectTocStyles() {
+    // 检查样式是否已存在
+    let styleElement = document.getElementById('toc-styles');
+    if (!styleElement) {
+        styleElement = document.createElement('style');
+        styleElement.id = 'toc-styles';
+        document.head.appendChild(styleElement);
+    }
+    
+    styleElement.textContent = `
+        /* 目录箭头样式 - 完全融入链接框内 */
+        .toc-arrow {
+            cursor: pointer;
+            display: inline-block;
+            margin-right: 8px;
+            font-size: 12px;
+            width: 12px;
+            height: 12px;
+            text-align: center;
+            line-height: 12px;
+            vertical-align: middle;
+            position: relative;
+            pointer-events: auto;
+        }
+        
+        /* 箭头方向 */
+        .arrow-right {
+            transform: rotate(0deg);
+        }
+        
+        .arrow-down {
+            transform: rotate(90deg);
+        }
+        
+        /* 折叠状态 */
+        .collapsed {
+            display: none;
+        }
+        
+        /* 目录层级样式 */
+        .toc-h2-list {
+            margin-left: 20px;
+            margin-top: 5px;
+            margin-bottom: 5px;
+        }
+        
+        .toc-h3-list {
+            margin-left: 20px;
+            margin-top: 5px;
+            margin-bottom: 5px;
+        }
+        
+        .toc-h4-list {
+            margin-left: 20px;
+            margin-top: 5px;
+            margin-bottom: 5px;
+        }
+        
+        .toc-h5-list {
+            margin-left: 20px;
+            margin-top: 5px;
+            margin-bottom: 5px;
+        }
+        
+        .toc-h6-list {
+            margin-left: 20px;
+            margin-top: 5px;
+            margin-bottom: 5px;
+        }
+        
+        /* 目录链接样式 - 确保箭头完全融入链接框内 */
+        #noteNav a {
+            display: block;
+            padding: 4px 12px;
+            margin: 2px 0;
+            color: #333;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            width: 100%;
+            box-sizing: border-box;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        /* 对于有子项的链接，确保箭头区域显示正常 */
+        #noteNav a[data-has-children="true"] {
+            padding-left: 12px;
+        }
+        
+        #noteNav a:hover {
+            background-color: #f0f0f0;
+        }
+        
+        #noteNav a.active {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        /* 目录项样式 */
+        #noteNav li {
+            margin: 3px 0;
+            list-style-type: none;
+        }
+    `;
 }
 
 // 加载笔记内容
