@@ -1,10 +1,60 @@
 // 全局变量
 let currentNoteId = null;
 let notes = [];
-// API基础地址配置
-const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+// API基础URL配置
+const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:8080/api' // 开发环境，已添加/api前缀
     : 'http://106.53.121.165:8080/api'; // 生产环境，已添加/api前缀
+
+// 通用API请求函数，自动处理token认证
+async function apiRequest(endpoint, options = {}) {
+    // 构建完整URL
+    const url = `${API_BASE_URL}${endpoint}`;
+    
+    // 确保options存在
+    options = options || {};
+    options.headers = options.headers || {};
+    
+    // 默认Content-Type
+    if (!options.headers['Content-Type'] && options.body) {
+        options.headers['Content-Type'] = 'application/json';
+    }
+    
+    // 对于非登录、注册、验证码、忘记密码等公开接口，添加token认证
+    const publicEndpoints = [
+        '/user/loginByVerifyCode',
+        '/user/loginByPassword',
+        '/user/sendVerifyCode',
+        '/user/register',
+        '/user/changePassword'
+    ];
+    
+    // 检查是否需要添加token
+    if (!publicEndpoints.includes(endpoint)) {
+        const token = getCookie('token');
+        if (token) {
+            options.headers['token'] = token;
+        }
+    }
+    
+    // 设置超时
+    if (!options.signal) {
+        options.signal = AbortSignal.timeout(5000);
+    }
+    
+    try {
+        const response = await fetch(url, options);
+        
+        if (!response.ok) {
+            throw new Error(`网络响应异常: ${response.status}`);
+        }
+        
+        return await response.json();
+    } catch (error) {
+        console.error(`API请求失败 (${endpoint}):`, error);
+        throw error;
+    }
+}
 
 // 初始化函数
 function init() {
@@ -23,7 +73,8 @@ function checkLoginStatus() {
     
     if (userEmail) {
         // 已登录状态
-        document.getElementById('userEmail').textContent = formatEmail(userEmail);
+        // 初始状态显示部分隐藏的邮箱
+        document.getElementById('userEmail').textContent = getMaskedEmail(userEmail);
         loginModal.classList.add('hidden');
         loginModal.classList.remove('active');
         mainContainer.classList.remove('hidden');
@@ -72,6 +123,7 @@ function bindEvents() {
     
     // 用户下拉菜单事件
     document.getElementById('userEmail').addEventListener('click', toggleUserDropdown);
+    document.getElementById('showFullAccountBtn').addEventListener('click', showFullAccount);
     
     // 点击页面其他地方关闭下拉菜单
     document.addEventListener('click', (event) => {
@@ -85,10 +137,62 @@ function bindEvents() {
     });
 }
 
-// 切换用户下拉菜单显示/隐藏
+// 切换用户下拉菜单显示状态
 function toggleUserDropdown() {
     const dropdown = document.getElementById('userDropdown');
     dropdown.classList.toggle('hidden');
+}
+
+// 全局变量，用于记录账号是否完整显示
+let isFullAccountVisible = false;
+
+// 处理邮箱显示（部分隐藏）的函数
+function getMaskedEmail(email) {
+    if (!email || email.length <= 5) return email;
+    
+    const [username, domain] = email.split('@');
+    if (!username || !domain) return email;
+    
+    // 对于用户名部分，只显示前2个和后1个字符，中间用星号代替
+    if (username.length <= 3) {
+        return username.charAt(0) + '*'.repeat(username.length - 1) + '@' + domain;
+    }
+    
+    const maskedUsername = username.substring(0, 2) + '*'.repeat(username.length - 3) + username.charAt(username.length - 1);
+    return maskedUsername + '@' + domain;
+}
+
+// 切换显示/隐藏完整账号
+function showFullAccount() {
+    // 获取用户邮箱（从cookie中）
+    const userEmail = getCookie('userEmail');
+    const userEmailElement = document.getElementById('userEmail');
+    const showFullAccountBtn = document.getElementById('showFullAccountBtn');
+    
+    if (!userEmail) {
+        alert('未找到账号信息，请重新登录');
+        // 关闭下拉菜单
+        document.getElementById('userDropdown').classList.add('hidden');
+        return;
+    }
+    
+    // 切换显示状态
+    isFullAccountVisible = !isFullAccountVisible;
+    
+    if (isFullAccountVisible) {
+        // 显示完整账号
+        userEmailElement.textContent = userEmail;
+        // 更改按钮文本为隐藏完整账号
+        showFullAccountBtn.textContent = '隐藏完整账号';
+    } else {
+        // 显示部分隐藏的账号
+        userEmailElement.textContent = getMaskedEmail(userEmail);
+        // 更改按钮文本为显示完整账号
+        showFullAccountBtn.textContent = '显示完整账号';
+    }
+    
+    // 关闭下拉菜单
+    document.getElementById('userDropdown').classList.add('hidden');
 }
 
 // 发送验证码
@@ -138,22 +242,11 @@ async function sendVerificationCode() {
 // 发送验证码API调用
 async function sendVerificationCodeAPI(email) {
     try {
-        // 调用后端发送验证码接口
-        const response = await fetch(`${API_BASE_URL}/user/sendVerifyCode`, {
+        // 使用新的apiRequest函数调用后端发送验证码接口
+        const result = await apiRequest('/user/sendVerifyCode', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ email }), // 使用email字段传递邮箱
-            // 设置超时时间为5秒
-            signal: AbortSignal.timeout(5000)
+            body: JSON.stringify({ email })
         });
-        
-        if (!response.ok) {
-            throw new Error('网络响应异常');
-        }
-        
-        const result = await response.json();
         
         // 检查statusCode.code是否为200来判断验证码发送成功
         if (result.statusCode && result.statusCode.code === 200) {
@@ -181,6 +274,74 @@ function switchLoginTab(tab) {
     
     // 清除错误信息
     document.getElementById('loginError').textContent = '';
+}
+
+// 获取笔记列表
+async function fetchNotebookList() {
+    try {
+        const result = await apiRequest('/notebook/list', {
+            method: 'GET'
+        });
+        
+        if (result.statusCode && result.statusCode.code === 200 && result.data) {
+            // 将API返回的数据转换为前端需要的格式
+            notes = result.data.map((item, index) => ({
+                id: `note${index + 1}`,
+                title: item.fileName.replace('.md', ''),
+                fileName: item.fileName,
+                fileUrl: item.fileUrl
+            }));
+            
+            // 更新笔记下拉框
+            updateNotebookDropdown();
+            
+            return true;
+        } else {
+            console.error('获取笔记列表失败:', result.statusCode?.message || '未知错误');
+            // 如果获取失败，使用模拟数据作为后备
+            loadMockNotes();
+            updateNotebookDropdown();
+            return false;
+        }
+    } catch (error) {
+        console.error('获取笔记列表请求失败:', error);
+        // 如果请求失败，使用模拟数据作为后备
+        loadMockNotes();
+        updateNotebookDropdown();
+        return false;
+    }
+}
+
+// 更新笔记下拉框
+function updateNotebookDropdown() {
+    const dropdown = document.getElementById('notebookDropdown');
+    if (!dropdown) return;
+    
+    // 清空下拉框
+    dropdown.innerHTML = '';
+    
+    // 添加笔记选项
+    notes.forEach(note => {
+        const option = document.createElement('option');
+        option.value = note.id;
+        option.textContent = note.title;
+        dropdown.appendChild(option);
+    });
+    
+    // 默认选择hutool.md
+    const hutoolNote = notes.find(note => note.fileName === 'hutool.md');
+    if (hutoolNote) {
+        dropdown.value = hutoolNote.id;
+    }
+}
+
+// 处理笔记选择
+function handleNotebookSelect() {
+    const dropdown = document.getElementById('notebookDropdown');
+    const noteId = dropdown.value;
+    if (noteId) {
+        loadNote(noteId);
+    }
 }
 
 // 处理登录
@@ -228,18 +389,23 @@ async function handleLogin() {
             setCookie('userEmail', response.data.email, 30); // 30天过期
             
             // 更新界面
-            document.getElementById('userEmail').textContent = formatEmail(response.data.email);
+            document.getElementById('userEmail').textContent = getMaskedEmail(response.data.email);
             const loginModal = document.getElementById('loginModal');
             loginModal.classList.add('hidden');
             loginModal.classList.remove('active');
             document.getElementById('mainContainer').classList.remove('hidden');
             
-            // 加载模拟笔记数据
-            loadMockNotes();
+            // 获取笔记列表
+            await fetchNotebookList();
             // 生成侧边栏索引
             generateSidebarIndex();
-            // 默认加载第一个笔记
-            if (notes.length > 0) {
+            
+            // 默认加载hutool.md
+            const hutoolNote = notes.find(note => note.fileName === 'hutool.md');
+            if (hutoolNote) {
+                loadNote(hutoolNote.id);
+            } else if (notes.length > 0) {
+                // 如果没有hutool.md，则加载第一个笔记
                 loadNote(notes[0].id);
             }
         } else {
@@ -255,28 +421,21 @@ async function handleLogin() {
 // 验证码登录API调用
 async function loginWithVerifyCode(email, verifyCode) {
     try {
-        // 调用后端验证码登录接口
-        const response = await fetch(`${API_BASE_URL}/user/loginByVerifyCode`, {
+        // 使用新的apiRequest函数调用后端验证码登录接口
+        const result = await apiRequest('/user/loginByVerifyCode', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
             body: JSON.stringify({
                 email,
                 verifyCode
-            }),
-            // 设置超时时间为5秒
-            signal: AbortSignal.timeout(5000)
+            })
         });
-        
-        if (!response.ok) {
-            throw new Error('网络响应异常');
-        }
-        
-        const result = await response.json();
         
         // 检查statusCode.code是否为200来判断登录是否成功
         if (result.statusCode && result.statusCode.code === 200) {
+            // 保存token到cookie
+            if (result.data && result.data.token) {
+                setCookie('token', result.data.token, 30);
+            }
             // 转换为前端期望的格式
             return {
                 success: true,
@@ -296,7 +455,9 @@ async function loginWithVerifyCode(email, verifyCode) {
         // 演示环境验证码验证
         if (verifyCode === '123456') {
             console.log('（演示环境：使用模拟登录数据）');
-            return { success: true, data: { email }, message: '登录成功' };
+            // 模拟保存token
+            setCookie('token', 'mock_token_' + Date.now(), 30);
+            return { success: true, data: { email, token: 'mock_token_' + Date.now() }, message: '登录成功' };
         }
         
         return {
@@ -329,28 +490,21 @@ function getCookie(name) {
 // 密码登录API调用
 async function loginWithPassword(email, password) {
     try {
-        // 调用后端登录接口
-        const response = await fetch(`${API_BASE_URL}/user/loginByPassword`, {
+        // 使用新的apiRequest函数调用后端登录接口
+        const result = await apiRequest('/user/loginByPassword', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
             body: JSON.stringify({
                 email,
                 password
-            }),
-            // 设置超时时间为5秒
-            signal: AbortSignal.timeout(5000)
+            })
         });
-        
-        if (!response.ok) {
-            throw new Error('网络响应异常');
-        }
-        
-        const result = await response.json();
         
         // 检查statusCode.code是否为200来判断登录是否成功
         if (result.statusCode && result.statusCode.code === 200) {
+            // 保存token到cookie
+            if (result.data && result.data.token) {
+                setCookie('token', result.data.token, 30);
+            }
             // 转换为前端期望的格式
             return {
                 success: true,
@@ -378,6 +532,8 @@ async function loginWithPassword(email, password) {
 function handleLogout() {
     // 清除cookie中的用户信息
     setCookie('userEmail', '', -1);
+    // 清除token cookie
+    setCookie('token', '', -1);
     
     // 重置状态
     currentNoteId = null;
@@ -427,33 +583,61 @@ function showForgotPasswordModal(event) {
 
 // 发送忘记密码验证码
 function sendForgotVerificationCode() {
-    const email = document.getElementById('forgotEmail').value;
-    if (!email) {
-        document.getElementById('forgotPasswordError').textContent = '请输入邮箱地址';
+    const emailInput = document.getElementById('forgotEmail');
+    const email = emailInput.value.trim();
+    const errorElement = document.getElementById('forgotPasswordError');
+    const sendCodeBtn = document.getElementById('sendForgotVerifyCode');
+    
+    // 简单的邮箱格式验证
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        errorElement.textContent = '请输入有效的邮箱地址';
         return;
     }
     
-    // 隐藏错误信息
-    document.getElementById('forgotPasswordError').textContent = '';
+    // 清空错误提示
+    errorElement.textContent = '';
     
-    // 禁用按钮并开始倒计时
-    const button = document.getElementById('sendForgotVerifyCode');
-    let countdown = 60;
-    button.disabled = true;
-    button.textContent = `${countdown}秒后重新发送`;
+    // 禁用按钮，防止重复发送
+    sendCodeBtn.disabled = true;
     
-    const timer = setInterval(() => {
-        countdown--;
-        button.textContent = `${countdown}秒后重新发送`;
-        if (countdown <= 0) {
-            clearInterval(timer);
-            button.disabled = false;
-            button.textContent = '发送验证码';
+    // 使用新的apiRequest函数调用发送验证码API
+    apiRequest('/user/sendVerifyCode', {
+        method: 'POST',
+        body: JSON.stringify({
+            email,
+            type: 'forgot'
+        })
+    })
+    .then(result => {
+        // 检查statusCode.code是否为200来判断是否成功
+        if (result.statusCode && result.statusCode.code === 200) {
+            errorElement.textContent = '验证码已发送';
+            errorElement.style.color = 'green';
+            
+            // 倒计时功能
+            let countdown = 60;
+            sendCodeBtn.textContent = `${countdown}秒后重新发送`;
+            
+            const timer = setInterval(() => {
+                countdown--;
+                sendCodeBtn.textContent = `${countdown}秒后重新发送`;
+                
+                if (countdown <= 0) {
+                    clearInterval(timer);
+                    sendCodeBtn.textContent = '发送验证码';
+                    sendCodeBtn.disabled = false;
+                }
+            }, 1000);
+        } else {
+            errorElement.textContent = result.statusCode?.message || '验证码发送失败';
+            sendCodeBtn.disabled = false;
         }
-    }, 1000);
-    
-    // 调用发送验证码API
-    sendVerificationCodeAPI(email);
+    })
+    .catch(error => {
+        console.error('发送验证码失败:', error);
+        errorElement.textContent = '验证码发送失败，请稍后重试';
+        sendCodeBtn.disabled = false;
+    });
 }
 
 // 修改密码
@@ -480,11 +664,9 @@ async function handleChangePassword() {
     document.getElementById('forgotPasswordError').textContent = '';
     
     try {
-        const response = await fetch(`${API_BASE_URL}/user/changePassword`, {
+        // 使用新的apiRequest函数调用修改密码接口
+        const result = await apiRequest('/user/changePassword', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
             body: JSON.stringify({
                 email,
                 verifyCode,
@@ -492,9 +674,7 @@ async function handleChangePassword() {
             })
         });
         
-        const data = await response.json();
-        
-        if (data.statusCode && data.statusCode.code === 200) {
+        if (result.statusCode && result.statusCode.code === 200) {
             // 密码修改成功
             alert('密码修改成功，请使用新密码登录');
             // 返回登录页面
@@ -502,7 +682,7 @@ async function handleChangePassword() {
             document.getElementById('loginModal').classList.remove('hidden');
         } else {
             // 密码修改失败
-            document.getElementById('forgotPasswordError').textContent = data.statusCode?.message || '修改密码失败，请重试';
+            document.getElementById('forgotPasswordError').textContent = result.statusCode?.message || '修改密码失败，请重试';
         }
     } catch (error) {
         console.error('修改密码时发生错误:', error);
@@ -581,34 +761,17 @@ async function sendRegisterVerificationCode() {
 // 发送注册验证码API调用
 async function sendRegisterVerificationCodeAPI(email) {
     try {
-        // 调用后端发送验证码接口
-        const response = await fetch(`${API_BASE_URL}/user/sendVerifyCode`, {
+        // 使用新的apiRequest函数调用后端发送验证码接口
+        const result = await apiRequest('/user/sendVerifyCode', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ email }),
-            // 设置超时时间为5秒
-            signal: AbortSignal.timeout(5000)
+            body: JSON.stringify({ email })
         });
         
-        if (!response.ok) {
-            console.warn('验证码接口返回非成功状态:', response.status);
-            return { success: false, message: '网络响应异常' };
-        }
-        
-        try {
-            const result = await response.json();
-            
-            // 检查statusCode.code是否为200来判断验证码发送成功
-            if (result.statusCode && result.statusCode.code === 200) {
-                return { success: true, message: result.statusCode.message || '验证码已发送' };
-            } else {
-                return { success: false, message: result.statusCode?.message || '验证码发送失败' };
-            }
-        } catch (jsonError) {
-            console.error('验证码接口返回数据解析失败:', jsonError);
-            return { success: false, message: '服务器返回数据格式错误' };
+        // 检查statusCode.code是否为200来判断验证码发送成功
+        if (result.statusCode && result.statusCode.code === 200) {
+            return { success: true, message: result.statusCode.message || '验证码已发送' };
+        } else {
+            return { success: false, message: result.statusCode?.message || '验证码发送失败' };
         }
     } catch (error) {
         // 使用debug级别记录错误，减少控制台干扰
@@ -677,59 +840,32 @@ async function handleRegister() {
 // 注册API调用
 async function registerUser(email, password, verifyCode) {
     try {
-        // 调用后端注册接口
-        const response = await fetch(`${API_BASE_URL}/user/register`, {
+        // 使用新的apiRequest函数调用后端注册接口
+        const result = await apiRequest('/user/register', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
             body: JSON.stringify({
                 email,
                 password,
-                verifyCode: verifyCode, // 使用正确的字段名
-            }),
-            // 设置超时时间为5秒
-            signal: AbortSignal.timeout(5000)
+                verifyCode
+            })
         });
         
-        if (!response.ok) {
-            console.warn('注册接口返回非成功状态:', response.status);
-            try {
-                // 尝试获取错误详情
-                const errorData = await response.json();
-                
-                // 检查是否包含statusCode字段
-                if (errorData.statusCode) {
-                    return { 
-                        success: false, 
-                        message: errorData.statusCode.message || '注册失败' 
-                    };
-                }
-                
-                return errorData;
-            } catch (e) {
-                return { success: false, message: '网络响应异常' };
+        // 检查statusCode.code是否为200来判断注册是否成功
+        if (result.statusCode && result.statusCode.code === 200) {
+            // 保存token到cookie
+            if (result.data && result.data.token) {
+                setCookie('token', result.data.token, 30);
             }
-        }
-        
-        try {
-            const result = await response.json();
-            
-            // 检查statusCode.code是否为200来判断注册是否成功
-            if (result.statusCode && result.statusCode.code === 200) {
-                return { 
-                    success: true, 
-                    message: result.statusCode.message || '注册成功' 
-                };
-            } else {
-                return { 
-                    success: false, 
-                    message: result.statusCode?.message || '注册失败' 
-                };
-            }
-        } catch (jsonError) {
-            console.error('注册接口返回数据解析失败:', jsonError);
-            return { success: false, message: '服务器返回数据格式错误' };
+            return {
+                success: true,
+                data: result.data || {},
+                message: result.statusCode.message || '注册成功'
+            };
+        } else {
+            return {
+                success: false,
+                message: result.statusCode?.message || '注册失败'
+            };
         }
     } catch (error) {
         // 使用debug级别记录错误，减少控制台干扰
@@ -740,22 +876,7 @@ async function registerUser(email, password, verifyCode) {
     }
 }
 
-// 格式化邮箱显示
-function formatEmail(email) {
-    if (!email || !email.includes('@')) return email;
-    const [username, domain] = email.split('@');
-    // 隐藏用户名中间部分，保留前2个和后2个字符
-    if (username.length > 4) {
-        const maskedUsername = username.substring(0, 2) + '***' + username.substring(username.length - 2);
-        return maskedUsername + '@' + domain;
-    }
-    // 如果用户名太短，只隐藏中间1个字符
-    if (username.length > 2) {
-        const maskedUsername = username.substring(0, 1) + '***' + username.substring(username.length - 1);
-        return maskedUsername + '@' + domain;
-    }
-    return email;
-}
+
 
 // 加载模拟笔记数据
 function loadMockNotes() {
@@ -947,34 +1068,154 @@ CSS3支持多种动画效果：
     ];
 }
 
-// 生成侧边栏索引
+// 生成侧边栏索引 - 显示当前笔记的目录结构
 function generateSidebarIndex() {
     const navList = document.getElementById('navList');
     navList.innerHTML = '';
     
-    notes.forEach(note => {
+    // 如果没有当前选中的笔记，显示笔记列表
+    if (!currentNoteId) {
+        notes.forEach(note => {
+            const li = document.createElement('li');
+            const a = document.createElement('a');
+            
+            a.href = `#${note.id}`;
+            a.textContent = note.title;
+            a.setAttribute('data-note-id', note.id);
+            
+            // 添加点击事件
+            a.addEventListener('click', (e) => {
+                e.preventDefault();
+                const noteId = a.getAttribute('data-note-id');
+                loadNote(noteId);
+                
+                // 更新活动状态
+                document.querySelectorAll('#noteNav a').forEach(item => {
+                    item.classList.remove('active');
+                });
+                a.classList.add('active');
+            });
+            
+            li.appendChild(a);
+            navList.appendChild(li);
+        });
+        return;
+    }
+    
+    // 显示当前笔记的标题作为返回链接
+    const currentNote = notes.find(note => note.id === currentNoteId);
+    if (currentNote) {
         const li = document.createElement('li');
         const a = document.createElement('a');
         
-        a.href = `#${note.id}`;
-        a.textContent = note.title;
-        a.setAttribute('data-note-id', note.id);
+        a.href = '#notes';
+        a.textContent = '返回笔记列表';
+        a.classList.add('back-to-list');
         
-        // 添加点击事件
+        // 添加点击事件 - 返回笔记列表
         a.addEventListener('click', (e) => {
             e.preventDefault();
-            const noteId = a.getAttribute('data-note-id');
-            loadNote(noteId);
-            
-            // 更新活动状态
-            document.querySelectorAll('#noteNav a').forEach(item => {
-                item.classList.remove('active');
-            });
-            a.classList.add('active');
+            currentNoteId = null;
+            generateSidebarIndex();
         });
         
         li.appendChild(a);
         navList.appendChild(li);
+    }
+    
+    // 获取当前渲染的Markdown内容中的标题
+    const headings = document.querySelectorAll('#markdownContent h1, #markdownContent h2');
+    
+    if (headings.length === 0) {
+        // 如果没有标题，显示提示信息
+        const li = document.createElement('li');
+        li.textContent = '当前笔记没有目录结构';
+        li.style.color = '#666';
+        li.style.fontStyle = 'italic';
+        li.style.padding = '10px 12px';
+        navList.appendChild(li);
+        return;
+    }
+    
+    let currentH1 = null;
+    let h1Li = null;
+    let h2Container = null;
+    
+    // 遍历所有标题，构建层级目录
+    headings.forEach((heading) => {
+        const headingId = heading.id;
+        const headingText = heading.textContent.trim();
+        
+        if (heading.tagName === 'H1') {
+            // 创建一级目录项
+            currentH1 = headingId;
+            h1Li = document.createElement('li');
+            const h1Link = document.createElement('a');
+            
+            h1Link.href = `#${headingId}`;
+            h1Link.textContent = headingText;
+            h1Link.classList.add('toc-h1');
+            h1Link.setAttribute('data-heading-id', headingId);
+            
+            // 添加点击事件 - 滚动到对应标题
+            h1Link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetId = h1Link.getAttribute('data-heading-id');
+                const targetElement = document.getElementById(targetId);
+                if (targetElement) {
+                    targetElement.scrollIntoView({ behavior: 'smooth' });
+                    
+                    // 更新活动状态
+                    document.querySelectorAll('#noteNav a').forEach(item => {
+                        item.classList.remove('active');
+                    });
+                    h1Link.classList.add('active');
+                }
+            });
+            
+            h1Li.appendChild(h1Link);
+            navList.appendChild(h1Li);
+            
+            // 创建二级目录容器
+            h2Container = document.createElement('ul');
+            h2Container.classList.add('toc-h2-list');
+            h1Li.appendChild(h2Container);
+            
+        } else if (heading.tagName === 'H2') {
+            // 创建二级目录项
+            const h2Li = document.createElement('li');
+            const h2Link = document.createElement('a');
+            
+            h2Link.href = `#${headingId}`;
+            h2Link.textContent = headingText;
+            h2Link.classList.add('toc-h2');
+            h2Link.setAttribute('data-heading-id', headingId);
+            
+            // 添加点击事件 - 滚动到对应标题
+            h2Link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetId = h2Link.getAttribute('data-heading-id');
+                const targetElement = document.getElementById(targetId);
+                if (targetElement) {
+                    targetElement.scrollIntoView({ behavior: 'smooth' });
+                    
+                    // 更新活动状态
+                    document.querySelectorAll('#noteNav a').forEach(item => {
+                        item.classList.remove('active');
+                    });
+                    h2Link.classList.add('active');
+                }
+            });
+            
+            h2Li.appendChild(h2Link);
+            
+            // 如果没有一级标题容器，直接添加到navList
+            if (h2Container) {
+                h2Container.appendChild(h2Li);
+            } else {
+                navList.appendChild(h2Li);
+            }
+        }
     });
 }
 
@@ -985,8 +1226,40 @@ function loadNote(noteId) {
     
     currentNoteId = noteId;
     
-    // 渲染Markdown内容
-    renderMarkdown(note.content);
+    // 更新下拉框选中状态
+    const dropdown = document.getElementById('notebookDropdown');
+    if (dropdown) {
+        dropdown.value = noteId;
+    }
+    
+    // 如果有fileUrl，则通过URL加载内容
+    if (note.fileUrl) {
+        fetch(note.fileUrl.trim())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.text();
+            })
+            .then(content => {
+                // 渲染Markdown内容
+                renderMarkdown(content);
+                // 生成侧边栏目录
+                generateSidebarIndex();
+            })
+            .catch(error => {
+                console.error('Failed to load note content:', error);
+                // 如果加载失败，使用标题作为内容
+                renderMarkdown(`# ${note.title}\n\n无法加载笔记内容，请稍后重试。`);
+                // 生成侧边栏目录
+                generateSidebarIndex();
+            });
+    } else if (note.content) {
+        // 如果有本地内容，则使用本地内容（用于模拟数据）
+        renderMarkdown(note.content);
+        // 生成侧边栏目录
+        generateSidebarIndex();
+    }
     
     // 更新页面标题
     document.title = `${note.title} - 学习笔记平台`;

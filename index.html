@@ -126,11 +126,21 @@
         <!-- 顶部导航栏 -->
         <header>
             <h1>学习笔记平台</h1>
+            <div class="header-right">
+                <!-- 笔记选择下拉框 -->
+                <div class="notebook-selector">
+                    <select id="notebookDropdown" onchange="handleNotebookSelect()">
+                        <!-- 选项将通过JavaScript动态生成 -->
+                    </select>
+                </div>
+                <!-- 用户信息 -->
                 <div class="user-info">
-                <div class="dropdown">
-                    <span id="userEmail" class="dropdown-toggle"></span>
-                    <div id="userDropdown" class="dropdown-menu hidden">
-                        <button id="logoutBtn" class="dropdown-item">退出</button>
+                    <div class="dropdown">
+                        <span id="userEmail" class="dropdown-toggle"></span>
+                        <div id="userDropdown" class="dropdown-menu hidden">
+                            <button id="showFullAccountBtn" class="dropdown-item">显示完整账号</button>
+                            <button id="logoutBtn" class="dropdown-item">退出</button>
+                        </div>
                     </div>
                 </div>
             </div>
