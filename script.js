@@ -79,14 +79,15 @@ function checkLoginStatus() {
         loginModal.classList.remove('active');
         mainContainer.classList.remove('hidden');
         
-        // 加载模拟笔记数据
-        loadMockNotes();
-        // 生成侧边栏索引
-        generateSidebarIndex();
-        // 默认加载第一个笔记
-        if (notes.length > 0) {
-            loadNote(notes[0].id);
-        }
+        // 从API获取笔记列表
+        fetchNotebookList().then(() => {
+            // 生成侧边栏索引
+            generateSidebarIndex();
+            // 默认加载第一个笔记
+            if (notes.length > 0) {
+                loadNote(notes[0].id);
+            }
+        });
     } else {
         // 未登录状态
         loginModal.classList.add('active');
@@ -1248,7 +1249,6 @@ function loadNote(noteId) {
                 generateSidebarIndex();
             })
             .catch(error => {
-                console.error('Failed to load note content:', error);
                 // 如果加载失败，使用标题作为内容
                 renderMarkdown(`# ${note.title}\n\n无法加载笔记内容，请稍后重试。`);
                 // 生成侧边栏目录
@@ -1273,12 +1273,61 @@ function loadNote(noteId) {
     });
 }
 
+// 阿里云图片存储基础URL
+const ALIYUN_BASE_URL = 'https://lbytechcn.oss-cn-shenzhen.aliyuncs.com/';
+
 // 渲染Markdown内容
 function renderMarkdown(content) {
     const markdownContent = document.getElementById('markdownContent');
     
+    // 创建自定义renderer
+    const renderer = new marked.Renderer();
+    
+    // 重写image渲染方法，将相对路径转换为阿里云路径
+    renderer.image = function(href, title, text) {
+        // 处理href可能是对象的情况
+        let imageUrl = href;
+        
+        // 尝试获取实际的href字符串
+        let actualHref = null;
+        if (typeof href === 'string') {
+            actualHref = href;
+        } else if (typeof href === 'object' && href !== null && href.href) {
+            // 如果href是对象且有href属性，则使用其href属性
+            actualHref = href.href;
+        } else {
+            // 默认处理，避免渲染失败
+            return `<img src="" alt="${text || ''}"${title ? ` title="${title}"` : ''}>`;
+        }
+        
+        if (actualHref) {
+            imageUrl = actualHref;
+            
+            if (!actualHref.startsWith('http')) {
+                // 处理Windows路径分隔符
+                const normalizedPath = actualHref.replace(/\\/g, '/');
+                // 处理相对路径
+                if (normalizedPath.startsWith('../')) {
+                    // 移除../前缀
+                    const parts = normalizedPath.split('/').filter(part => part !== '..');
+                    imageUrl = ALIYUN_BASE_URL + parts.join('/');
+                } else if (normalizedPath.startsWith('/')) {
+                    imageUrl = ALIYUN_BASE_URL + normalizedPath.substring(1);
+                } else {
+                    imageUrl = ALIYUN_BASE_URL + normalizedPath;
+                }
+            }
+        }
+        
+        // 返回HTML img标签
+        const escapedText = text ? text.replace(/"/g, '&quot;') : '';
+        const titleAttr = title ? ` title="${title}"` : '';
+        return `<img src="${imageUrl}" alt="${escapedText}"${titleAttr}>`;
+    };
+    
     // 设置marked选项
     marked.setOptions({
+        renderer: renderer,
         highlight: function(code, lang) {
             if (lang && hljs.getLanguage(lang)) {
                 return hljs.highlight(code, { language: lang }).value;
@@ -1289,14 +1338,48 @@ function renderMarkdown(content) {
         gfm: true
     });
     
-    // 渲染Markdown
-    markdownContent.innerHTML = marked.parse(content);
+    try {
+        // 渲染Markdown，确保使用自定义renderer
+        markdownContent.innerHTML = marked.parse(content);
+
+    } catch (error) {
+        markdownContent.innerHTML = '<div class="error">渲染内容失败，请检查格式</div>';
+    }
     
     // 为渲染后的内容中的标题添加id，用于内部导航
     addHeadingIds(markdownContent);
     
     // 为页面内链接添加点击事件
     addHeadingLinksEvent();
+    
+    // 渲染后额外检查并修正图片路径，确保所有相对路径都正确转换
+    setTimeout(() => {
+        const images = markdownContent.querySelectorAll('img');
+        images.forEach((img) => {
+            // 获取当前图片src
+            let src = img.getAttribute('src');
+            
+            // 检查src是否为字符串类型且有效
+            if (typeof src === 'string' && src && !src.startsWith('http')) {
+                // 处理Windows路径分隔符
+                const normalizedPath = src.replace(/\\/g, '/');
+                
+                // 将相对路径转换为阿里云路径
+                let newSrc;
+                if (normalizedPath.startsWith('../')) {
+                    // 移除../前缀
+                    const parts = normalizedPath.split('/').filter(part => part !== '..');
+                    newSrc = ALIYUN_BASE_URL + parts.join('/');
+                } else if (normalizedPath.startsWith('/')) {
+                    newSrc = ALIYUN_BASE_URL + normalizedPath.substring(1);
+                } else {
+                    newSrc = ALIYUN_BASE_URL + normalizedPath;
+                }
+                
+                img.setAttribute('src', newSrc);
+            }
+        });
+    }, 100);
 }
 
 // 为标题添加id
