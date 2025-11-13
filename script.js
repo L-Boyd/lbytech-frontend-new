@@ -49,7 +49,25 @@ async function apiRequest(endpoint, options = {}) {
             throw new Error(`网络响应异常: ${response.status}`);
         }
         
-        return await response.json();
+        const data = await response.json();
+        
+        // 检查是否返回401未授权状态
+        if (data.statusCode && data.statusCode.code === 401) {
+            console.warn('用户未授权，需要重新登录:', data.data || data.statusCode.message);
+            // 清除登录状态
+            handleLogout();
+            // 显示登录模态框
+            const loginModal = document.getElementById('loginModal');
+            const mainContainer = document.getElementById('mainContainer');
+            loginModal.classList.add('active');
+            loginModal.classList.remove('hidden');
+            mainContainer.classList.add('hidden');
+            // 显示提示信息
+            alert('用户未登录，请重新登录');
+            throw new Error('用户未授权');
+        }
+        
+        return data;
     } catch (error) {
         console.error(`API请求失败 (${endpoint}):`, error);
         throw error;
