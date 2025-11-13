@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  frontend:
+    build: .
+    container_name: lbytech-frontend
+    ports:
+      - "80:80"
+    restart: unless-stopped
+    environment:
+      - NGINX_HOST=localhost
+      - NGINX_PORT=80
+    networks:
+      - web-network
+
+networks:
+  web-network:
+    driver: bridge

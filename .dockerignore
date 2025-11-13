@@ -1,0 +1,38 @@
+# 排除不需要复制到Docker镜像中的文件和目录
+
+# Git相关文件
+.git
+.gitignore
+.gitattributes
+
+# Node.js相关（如果有）
+node_modules
+npm-debug.log
+yarn-error.log
+
+# IDE和编辑器相关
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# 操作系统相关
+.DS_Store
+Thumbs.db
+
+# Docker相关
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# 文档和说明文件
+README.md
+*.md
+
+# 日志文件
+*.log
+
+# 临时文件
+tmp
+temp
