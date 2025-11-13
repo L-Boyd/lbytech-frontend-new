@@ -144,6 +144,10 @@ function bindEvents() {
     document.getElementById('userEmail').addEventListener('click', toggleUserDropdown);
     document.getElementById('showFullAccountBtn').addEventListener('click', showFullAccount);
     
+    // 笔记上传相关事件
+    document.getElementById('uploadNotebookBtn').addEventListener('click', handleUploadButtonClick);
+    document.getElementById('notebookFileInput').addEventListener('change', handleFileSelect);
+    
     // 点击页面其他地方关闭下拉菜单
     document.addEventListener('click', (event) => {
         const dropdown = document.getElementById('userDropdown');
@@ -1686,3 +1690,94 @@ function addHeadingLinksEvent() {
 
 // 页面加载完成后初始化
 window.addEventListener('DOMContentLoaded', init);
+
+// 笔记上传相关函数
+// 处理上传按钮点击事件
+function handleUploadButtonClick() {
+    const fileInput = document.getElementById('notebookFileInput');
+    fileInput.click();
+}
+
+// 处理文件选择事件
+async function handleFileSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    // 验证文件类型
+    const allowedTypes = ['.md', '.txt', '.json'];
+    const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+    
+    if (!allowedTypes.includes(fileExtension)) {
+        alert('只支持上传 .md、.txt 或 .json 格式的文件');
+        event.target.value = ''; // 清空文件输入
+        return;
+    }
+    
+    // 验证文件大小（限制为10MB）
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+        alert('文件大小不能超过10MB');
+        event.target.value = ''; // 清空文件输入
+        return;
+    }
+    
+    // 获取按钮元素和原始文本（移到try块外部）
+    const uploadBtn = document.getElementById('uploadNotebookBtn');
+    const originalText = uploadBtn.textContent;
+    
+    try {
+        // 显示上传中状态
+        uploadBtn.textContent = '上传中...';
+        uploadBtn.disabled = true;
+        
+        // 创建FormData对象
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        // 调用上传API
+        const response = await fetch(`${API_BASE_URL}/notebook/upload`, {
+            method: 'POST',
+            headers: {
+                'token': getCookie('token')
+            },
+            body: formData
+        });
+        
+        if (!response.ok) {
+            throw new Error(`上传失败: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.statusCode && result.statusCode.code === 200) {
+            // 上传成功
+            alert('笔记上传成功！');
+            
+            // 刷新笔记列表
+            await fetchNotebookList();
+            
+            // 更新下拉框
+            updateNotebookDropdown();
+            
+            // 重新生成侧边栏索引
+            generateSidebarIndex();
+            
+            // 如果返回了新上传的笔记信息，可以选择加载它
+            if (result.data && result.data.id) {
+                loadNote(result.data.id);
+            }
+        } else {
+            throw new Error(result.data || result.statusCode?.message || '上传失败');
+        }
+    } catch (error) {
+        console.error('上传笔记失败:', error);
+        alert(`上传失败: ${error.message}`);
+    } finally {
+        // 恢复按钮状态
+        uploadBtn.textContent = originalText;
+        uploadBtn.disabled = false;
+        
+        // 清空文件输入
+        event.target.value = '';
+    }
+}

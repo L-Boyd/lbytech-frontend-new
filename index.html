@@ -127,6 +127,11 @@
         <header>
             <h1>学习笔记平台</h1>
             <div class="header-right">
+                <!-- 笔记上传按钮 -->
+                <div class="notebook-uploader">
+                    <input type="file" id="notebookFileInput" accept=".md,.txt,.json" style="display: none;">
+                    <button id="uploadNotebookBtn" class="btn-upload">上传笔记</button>
+                </div>
                 <!-- 笔记选择下拉框 -->
                 <div class="notebook-selector">
                     <select id="notebookDropdown" onchange="handleNotebookSelect()">
