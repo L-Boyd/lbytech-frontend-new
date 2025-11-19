@@ -466,10 +466,9 @@ function updateNotebookDropdown() {
         dropdown.appendChild(option);
     });
     
-    // 默认选择hutool.md
-    const hutoolNote = notes.find(note => note.fileName === 'hutool.md');
-    if (hutoolNote) {
-        dropdown.value = hutoolNote.id;
+    // 默认选择第一个笔记
+    if (notes.length > 0) {
+        dropdown.value = notes[0].id;
     }
 }
 
@@ -538,12 +537,8 @@ async function handleLogin() {
             // 生成侧边栏索引
             generateSidebarIndex();
             
-            // 默认加载hutool.md
-            const hutoolNote = notes.find(note => note.fileName === 'hutool.md');
-            if (hutoolNote) {
-                loadNote(hutoolNote.id);
-            } else if (notes.length > 0) {
-                // 如果没有hutool.md，则加载第一个笔记
+            // 默认加载第一个笔记
+            if (notes.length > 0) {
                 loadNote(notes[0].id);
             }
         } else {
