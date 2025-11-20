@@ -195,7 +195,7 @@ body {
 #mainContainer {
     display: flex;
     flex-direction: column;
-    height: 100vh;
+    min-height: 100vh;
 }
 
 #mainContainer.hidden {
@@ -578,6 +578,16 @@ header h1 {
         margin: 20px;
         padding: 24px;
     }
+    
+    .beian-container {
+        flex-direction: column;
+        gap: 8px;
+        align-items: center;
+    }
+    
+    .separator {
+        display: none;
+    }
 }
 
 /* 滚动条样式 */
@@ -596,4 +606,49 @@ header h1 {
 
 ::-webkit-scrollbar-thumb:hover {
     background: #555;
+}
+
+/* 备案信息样式 */
+.icp-footer {
+    text-align: center;
+    padding: 16px;
+    background-color: #2c3e50;
+    border-top: 1px solid #34495e;
+    position: relative;
+    margin-top: auto;
+}
+
+.beian-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.icp-footer a {
+    color: #95a5a6;
+    text-decoration: none;
+    font-size: 12px;
+    transition: color 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.icp-footer a:hover {
+    color: #ecf0f1;
+    text-decoration: underline;
+}
+
+.separator {
+    color: #7f8c8d;
+    font-size: 12px;
+}
+
+.beian-icon {
+    width: 14px;
+    height: 14px;
+    vertical-align: middle;
+    display: inline-block;
 }
