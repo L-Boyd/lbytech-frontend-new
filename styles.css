@@ -9,6 +9,7 @@ body {
     line-height: 1.6;
     color: #333;
     background-color: #f5f5f5;
+    padding-bottom: 60px; /* 为固定footer预留空间 */
 }
 
 /* 模态框样式 */
@@ -23,6 +24,7 @@ body {
     justify-content: center;
     align-items: center;
     z-index: 1000;
+    padding-bottom: 60px; /* 为底部footer预留空间 */
 }
 
 .modal.hidden {
@@ -196,6 +198,7 @@ body {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
+    margin-bottom: -60px; /* 抵消body的padding-bottom */
 }
 
 #mainContainer.hidden {
@@ -614,8 +617,11 @@ header h1 {
     padding: 16px;
     background-color: #2c3e50;
     border-top: 1px solid #34495e;
-    position: relative;
-    margin-top: auto;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1;
 }
 
 .beian-container {
