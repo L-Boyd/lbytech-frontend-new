@@ -423,11 +423,11 @@ async function fetchNotebookList() {
         
         if (result.statusCode && result.statusCode.code === 200 && result.data) {
             // 将API返回的数据转换为前端需要的格式
-            notes = result.data.map((item, index) => ({
-                id: `note${index + 1}`,
+            notes = result.data.map(item => ({
+                id: item.id, // 保持原始ID，不再生成note${index+1}格式
                 title: item.fileName.replace('.md', ''),
-                fileName: item.fileName,
-                fileUrl: item.fileUrl
+                fileName: item.fileName
+                // 不再直接存储fileUrl，而是在loadNote时获取
             }));
             
             // 更新笔记下拉框
@@ -1053,7 +1053,9 @@ function greet(message) {
 
 // 调用函数
 greet('Hello JavaScript!');
-\`\`\``
+\`\`\``,
+            thumbCount: 5,
+            isThumbed: false
         },
         {
             id: 'note2',
@@ -1497,7 +1499,7 @@ function injectTocStyles() {
 }
 
 // 加载笔记内容
-function loadNote(noteId) {
+async function loadNote(noteId) {
     const note = notes.find(n => n.id === noteId);
     if (!note) return;
     
@@ -1509,44 +1511,72 @@ function loadNote(noteId) {
         dropdown.value = noteId;
     }
     
-    // 如果有fileUrl，则通过URL加载内容
-    if (note.fileUrl) {
-        fetch(note.fileUrl.trim())
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
+    try {
+        // 通过API获取笔记的完整信息
+        const result = await apiRequest(`/notebook/getFileById?id=${noteId}`, {
+            method: 'GET'
+        });
+        
+        if (result.statusCode && result.statusCode.code === 200 && result.data) {
+            const noteData = result.data;
+            
+            // 更新笔记信息
+            note.fileUrl = noteData.fileUrl;
+            note.thumbCount = noteData.thumbCount;
+            note.isThumbed = noteData.isThumbed;
+            
+            // 如果有fileUrl，则通过URL加载内容
+            if (noteData.fileUrl) {
+                fetch(noteData.fileUrl.trim())
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.text();
+                    })
+                    .then(content => {
+                        // 渲染Markdown内容
+                        renderMarkdown(content);
+                        // 生成侧边栏目录
+                        generateSidebarIndex();
+                    })
+                    .catch(error => {
+                        // 如果加载失败，使用标题作为内容
+                        renderMarkdown(`# ${note.title}\n\n无法加载笔记内容，请稍后重试。`);
+                        // 生成侧边栏目录
+                        generateSidebarIndex();
+                    });
+            } else if (note.content) {
+                // 如果有本地内容，则使用本地内容（用于模拟数据）
+                renderMarkdown(note.content);
+                // 生成侧边栏目录
+                generateSidebarIndex();
+            }
+            
+            // 更新页面标题
+            document.title = `${note.title} - 学习笔记平台`;
+            
+            // 高亮当前选中的导航项
+            document.querySelectorAll('#noteNav a').forEach(item => {
+                item.classList.remove('active');
+                if (item.getAttribute('data-note-id') === noteId) {
+                    item.classList.add('active');
                 }
-                return response.text();
-            })
-            .then(content => {
-                // 渲染Markdown内容
-                renderMarkdown(content);
-                // 生成侧边栏目录
-                generateSidebarIndex();
-            })
-            .catch(error => {
-                // 如果加载失败，使用标题作为内容
-                renderMarkdown(`# ${note.title}\n\n无法加载笔记内容，请稍后重试。`);
-                // 生成侧边栏目录
-                generateSidebarIndex();
             });
-    } else if (note.content) {
-        // 如果有本地内容，则使用本地内容（用于模拟数据）
-        renderMarkdown(note.content);
+        } else {
+            console.error('获取笔记详情失败:', result.statusCode?.message || '未知错误');
+            // 如果获取失败，使用标题作为内容
+            renderMarkdown(`# ${note.title}\n\n无法加载笔记详情，请稍后重试。`);
+            // 生成侧边栏目录
+            generateSidebarIndex();
+        }
+    } catch (error) {
+        console.error('获取笔记详情请求失败:', error);
+        // 如果请求失败，使用标题作为内容
+        renderMarkdown(`# ${note.title}\n\n无法加载笔记详情，请稍后重试。`);
         // 生成侧边栏目录
         generateSidebarIndex();
     }
-    
-    // 更新页面标题
-    document.title = `${note.title} - 学习笔记平台`;
-    
-    // 高亮当前选中的导航项
-    document.querySelectorAll('#noteNav a').forEach(item => {
-        item.classList.remove('active');
-        if (item.getAttribute('data-note-id') === noteId) {
-            item.classList.add('active');
-        }
-    });
 }
 
 // 阿里云图片存储基础URL
