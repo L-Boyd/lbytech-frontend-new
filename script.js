@@ -1912,3 +1912,80 @@ function updateThumbUI(note) {
     
     thumbCountSpan.textContent = note.thumbCount;
 }
+
+// 侧边栏牵拉条功能实现
+function initSidebarResizer() {
+    const sidebar = document.getElementById('sidebar');
+    const resizer = document.getElementById('sidebar-resizer');
+    const content = document.getElementById('content');
+    
+    if (!sidebar || !resizer || !content) return;
+    
+    let isResizing = false;
+    let startX, startWidth;
+    
+    // 开始拖动
+    resizer.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        startX = e.clientX;
+        startWidth = parseInt(getComputedStyle(sidebar).width, 10);
+        
+        // 添加临时样式
+        document.body.style.cursor = 'ew-resize';
+        document.body.style.userSelect = 'none';
+        
+        // 记录初始宽度
+        localStorage.setItem('sidebarWidth', startWidth);
+    });
+    
+    // 拖动中
+    document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+        
+        const deltaX = e.clientX - startX;
+        let newWidth = startWidth + deltaX;
+        
+        // 设置最小和最大宽度限制
+        const minWidth = 200;
+        const maxWidth = 600;
+        newWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
+        
+        // 更新宽度
+        sidebar.style.width = `${newWidth}px`;
+        resizer.style.left = `${newWidth}px`;
+        content.style.marginLeft = `${newWidth}px`;
+    });
+    
+    // 结束拖动
+    document.addEventListener('mouseup', () => {
+        if (isResizing) {
+            isResizing = false;
+            
+            // 恢复样式
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            
+            // 保存最终宽度到localStorage
+            const finalWidth = parseInt(getComputedStyle(sidebar).width, 10);
+            localStorage.setItem('sidebarWidth', finalWidth);
+        }
+    });
+    
+    // 从localStorage加载保存的宽度
+    const savedWidth = localStorage.getItem('sidebarWidth');
+    if (savedWidth) {
+        const width = parseInt(savedWidth, 10);
+        if (width) {
+            sidebar.style.width = `${width}px`;
+            resizer.style.left = `${width}px`;
+            content.style.marginLeft = `${width}px`;
+        }
+    }
+}
+
+// 在页面加载完成后初始化侧边栏牵拉条
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSidebarResizer);
+} else {
+    initSidebarResizer();
+}
