@@ -76,12 +76,20 @@ async function apiRequest(endpoint, options = {}) {
 
 // 初始化函数
 function init() {
+    console.log('开始执行init()函数');
     // 检查登录状态
     checkLoginStatus();
     
     // 绑定事件
     bindEvents();
+    
+    console.log('init()函数执行完成');
 }
+
+// 页面加载完成后执行初始化
+window.addEventListener('DOMContentLoaded', function() {
+    init();
+});
 
 // 检查登录状态
 function checkLoginStatus() {
@@ -147,6 +155,9 @@ function bindEvents() {
     // 笔记上传相关事件
     document.getElementById('uploadNotebookBtn').addEventListener('click', handleUploadButtonClick);
     document.getElementById('notebookFileInput').addEventListener('change', handleFileSelect);
+    
+    // 点赞按钮事件
+    document.getElementById('thumbBtn').addEventListener('click', handleThumb);
     
     // 点击页面其他地方关闭下拉菜单
     document.addEventListener('click', (event) => {
@@ -474,8 +485,10 @@ function updateNotebookDropdown() {
 
 // 处理笔记选择
 function handleNotebookSelect() {
+    console.log('handleNotebookSelect 被调用');
     const dropdown = document.getElementById('notebookDropdown');
     const noteId = dropdown.value;
+    console.log('选择的noteId:', noteId);
     if (noteId) {
         loadNote(noteId);
     }
@@ -1096,7 +1109,9 @@ HTML5 Canvas提供了强大的绘图能力：
     ctx.fillStyle = 'red';
     ctx.fillRect(10, 10, 150, 80);
 </script>
-\`\`\``
+\`\`\``,
+            thumbCount: 12,
+            isThumbed: true
         },
         {
             id: 'note3',
@@ -1151,7 +1166,9 @@ CSS3支持多种动画效果：
 .element {
     transform: translate(x, y) rotate(deg) scale(n);
 }
-\`\`\``
+\`\`\``,
+            thumbCount: 8,
+            isThumbed: false
         },
         {
             id: 'note4',
@@ -1194,11 +1211,13 @@ CSS3支持多种动画效果：
 
 ## 图片处理
 
-响应式图片可以通过以下方式实现：
+// 响应式图片可以通过以下方式实现：
 
 - 使用\`<picture>\`元素
 - 使用\`srcset\`属性
-- 使用CSS的\`max-width: 100%\`确保图片不会溢出容器`
+- 使用CSS的\`max-width: 100%\`确保图片不会溢出容器`,
+            thumbCount: 15,
+            isThumbed: false
         }
     ];
 }
@@ -1220,8 +1239,10 @@ function generateSidebarIndex() {
             
             // 添加点击事件
             a.addEventListener('click', (e) => {
+                console.log('目录链接点击事件被触发');
                 e.preventDefault();
                 const noteId = a.getAttribute('data-note-id');
+                console.log('选择的noteId:', noteId);
                 loadNote(noteId);
                 
                 // 更新活动状态
@@ -1500,7 +1521,13 @@ function injectTocStyles() {
 
 // 加载笔记内容
 async function loadNote(noteId) {
-    const note = notes.find(n => n.id === noteId);
+    console.log('loadNote 被调用，noteId:', noteId, '类型:', typeof noteId);
+    console.log('notes 数组:', notes);
+    // 显示notes数组中每个笔记的id和类型
+    console.log('notes数组中的id类型:', notes.map(n => ({id: n.id, type: typeof n.id})));
+    // 使用类型转换解决比较问题
+    const note = notes.find(n => n.id == noteId);
+    console.log('找到的笔记:', note);
     if (!note) return;
     
     currentNoteId = noteId;
@@ -1539,18 +1566,28 @@ async function loadNote(noteId) {
                         renderMarkdown(content);
                         // 生成侧边栏目录
                         generateSidebarIndex();
+                        // 更新点赞按钮UI
+                        updateThumbUI(note);
                     })
                     .catch(error => {
                         // 如果加载失败，使用标题作为内容
                         renderMarkdown(`# ${note.title}\n\n无法加载笔记内容，请稍后重试。`);
                         // 生成侧边栏目录
                         generateSidebarIndex();
+                        // 更新点赞按钮UI
+                        updateThumbUI(note);
                     });
-            } else if (note.content) {
+            } else {
                 // 如果有本地内容，则使用本地内容（用于模拟数据）
-                renderMarkdown(note.content);
+                if (note.content) {
+                    renderMarkdown(note.content);
+                } else {
+                    renderMarkdown(`# ${note.title}\n\n无法加载笔记内容，请稍后重试。`);
+                }
                 // 生成侧边栏目录
                 generateSidebarIndex();
+                // 更新点赞按钮UI
+                updateThumbUI(note);
             }
             
             // 更新页面标题
@@ -1565,17 +1602,31 @@ async function loadNote(noteId) {
             });
         } else {
             console.error('获取笔记详情失败:', result.statusCode?.message || '未知错误');
-            // 如果获取失败，使用标题作为内容
+            // 如果获取失败但有本地模拟数据，则使用本地内容
+            if (note.content) {
+                renderMarkdown(note.content);
+                // 生成侧边栏目录
+                generateSidebarIndex();
+            } else {
+                // 否则显示错误消息
+                renderMarkdown(`# ${note.title}\n\n无法加载笔记详情，请稍后重试。`);
+                // 生成侧边栏目录
+                generateSidebarIndex();
+            }
+        }
+    } catch (error) {
+        console.error('获取笔记详情请求失败:', error);
+        // 如果请求失败但有本地模拟数据，则使用本地内容
+        if (note.content) {
+            renderMarkdown(note.content);
+            // 生成侧边栏目录
+            generateSidebarIndex();
+        } else {
+            // 否则显示错误消息
             renderMarkdown(`# ${note.title}\n\n无法加载笔记详情，请稍后重试。`);
             // 生成侧边栏目录
             generateSidebarIndex();
         }
-    } catch (error) {
-        console.error('获取笔记详情请求失败:', error);
-        // 如果请求失败，使用标题作为内容
-        renderMarkdown(`# ${note.title}\n\n无法加载笔记详情，请稍后重试。`);
-        // 生成侧边栏目录
-        generateSidebarIndex();
     }
 }
 
@@ -1805,4 +1856,59 @@ async function handleFileSelect(event) {
         // 清空文件输入
         event.target.value = '';
     }
+}
+
+// 处理点赞和取消点赞
+async function handleThumb() {
+    if (!currentNoteId) return;
+    
+    const note = notes.find(n => n.id == currentNoteId);
+    if (!note) return;
+    
+    const thumbBtn = document.getElementById('thumbBtn');
+    const thumbCountSpan = document.getElementById('thumbCount');
+    
+    try {
+        if (note.isThumbed) {
+            // 取消点赞
+            await apiRequest('/thumb/unThumbNotebook', {
+                method: 'POST',
+                body: JSON.stringify({ notebookId: currentNoteId })
+            });
+            
+            // 更新本地状态
+            note.isThumbed = false;
+            note.thumbCount = Math.max(0, note.thumbCount - 1);
+        } else {
+            // 点赞
+            await apiRequest('/thumb/thumbNotebook', {
+                method: 'POST',
+                body: JSON.stringify({ notebookId: currentNoteId })
+            });
+            
+            // 更新本地状态
+            note.isThumbed = true;
+            note.thumbCount += 1;
+        }
+        
+        // 更新UI
+        updateThumbUI(note);
+    } catch (error) {
+        console.error('点赞操作失败:', error);
+        alert('点赞操作失败，请稍后重试');
+    }
+}
+
+// 更新点赞按钮UI
+function updateThumbUI(note) {
+    const thumbBtn = document.getElementById('thumbBtn');
+    const thumbCountSpan = document.getElementById('thumbCount');
+    
+    if (note.isThumbed) {
+        thumbBtn.classList.add('thumbed');
+    } else {
+        thumbBtn.classList.remove('thumbed');
+    }
+    
+    thumbCountSpan.textContent = note.thumbCount;
 }
