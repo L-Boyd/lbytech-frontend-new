@@ -490,7 +490,7 @@ header h1 {
     padding: 30px;
     background-color: white;
     margin-left: 300px;
-    margin-top: 64px;
+    margin-top: 0; /* 修改：移除顶部留白 */
     min-height: calc(100vh - 64px);
 }
 
