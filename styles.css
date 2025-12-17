@@ -708,7 +708,7 @@ header h1 {
     bottom: 0;
     left: 0;
     right: 0;
-    z-index: 1;
+    z-index: 200; /* 提高z-index使其显示在侧边栏之上 */
 }
 
 .beian-container {
