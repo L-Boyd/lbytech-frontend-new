@@ -62,8 +62,7 @@ async function apiRequest(endpoint, options = {}) {
             loginModal.classList.add('active');
             loginModal.classList.remove('hidden');
             mainContainer.classList.add('hidden');
-            // 显示提示信息
-            alert('用户未登录，请重新登录');
+            // 不再显示alert提示
             throw new Error('用户未授权');
         }
         
