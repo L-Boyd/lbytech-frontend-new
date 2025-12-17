@@ -1260,22 +1260,7 @@ function generateSidebarIndex() {
     // 显示当前笔记的标题作为返回链接
     const currentNote = notes.find(note => note.id === currentNoteId);
     if (currentNote) {
-        const li = document.createElement('li');
-        const a = document.createElement('a');
-        
-        a.href = '#notes';
-        a.textContent = '返回笔记列表';
-        a.classList.add('back-to-list');
-        
-        // 添加点击事件 - 返回笔记列表
-        a.addEventListener('click', (e) => {
-            e.preventDefault();
-            currentNoteId = null;
-            generateSidebarIndex();
-        });
-        
-        li.appendChild(a);
-        navList.appendChild(li);
+        // 已移除返回笔记列表按钮
     }
     
     // 获取当前渲染的Markdown内容中的标题，包括H1到H6
