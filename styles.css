@@ -214,6 +214,8 @@ header {
     justify-content: space-between;
     align-items: center;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    height: 64px; /* 修改：设置固定高度 */
+    box-sizing: border-box; /* 确保padding包含在高度内 */
 }
 
 .header-right {
@@ -359,7 +361,7 @@ header h1 {
     overflow-y: auto;
     padding: 20px;
     position: fixed;
-    top: 64px;
+    top: 64px; /* 修改：与header高度一致 */
     left: 0;
     height: calc(100vh - 64px);
     flex-shrink: 0;
@@ -372,7 +374,7 @@ header h1 {
     width: 5px;
     background-color: #ddd;
     position: fixed;
-    top: 64px;
+    top: 64px; /* 修改：与header高度一致 */
     left: 300px;
     height: calc(100vh - 64px);
     cursor: ew-resize;
