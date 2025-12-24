@@ -1621,6 +1621,12 @@ const ALIYUN_BASE_URL = 'https://lbytechcn.oss-cn-shenzhen.aliyuncs.com/';
 function renderMarkdown(content) {
     const markdownContent = document.getElementById('markdownContent');
     
+    // 检查marked是否存在，防止加载失败导致错误
+    if (typeof marked === 'undefined') {
+        markdownContent.innerHTML = '<div class="error">Markdown渲染库加载失败，请刷新页面重试</div>';
+        return;
+    }
+    
     // 创建自定义renderer
     const renderer = new marked.Renderer();
     
@@ -1859,24 +1865,16 @@ async function handleThumb() {
                 method: 'POST',
                 body: JSON.stringify({ notebookId: currentNoteId })
             });
-            
-            // 更新本地状态
-            note.isThumbed = false;
-            note.thumbCount = Math.max(0, note.thumbCount - 1);
         } else {
             // 点赞
             await apiRequest('/thumb/thumbNotebook', {
                 method: 'POST',
                 body: JSON.stringify({ notebookId: currentNoteId })
             });
-            
-            // 更新本地状态
-            note.isThumbed = true;
-            note.thumbCount += 1;
         }
         
-        // 更新UI
-        updateThumbUI(note);
+        // 点赞/取消点赞后，调用getFileById获取最新点赞数和状态
+        await refreshThumbStatus(currentNoteId);
     } catch (error) {
         console.error('点赞操作失败:', error);
         alert('点赞操作失败，请稍后重试');
@@ -1973,3 +1971,42 @@ if (document.readyState === 'loading') {
 } else {
     initSidebarResizer();
 }
+
+// 刷新点赞状态 - 调用getFileById获取最新点赞数和状态
+async function refreshThumbStatus(noteId) {
+    if (!noteId) return;
+    
+    try {
+        // 通过API获取笔记的完整信息，包括最新的点赞数和状态
+        const result = await apiRequest(`/notebook/getFileById?id=${noteId}`, {
+            method: 'GET'
+        });
+        
+        if (result.statusCode && result.statusCode.code === 200 && result.data) {
+            const noteData = result.data;
+            
+            // 更新本地笔记信息
+            const note = notes.find(n => n.id == noteId);
+            if (note) {
+                note.thumbCount = noteData.thumbCount;
+                note.isThumbed = noteData.isThumbed;
+                
+                // 更新UI
+                updateThumbUI(note);
+            }
+        }
+    } catch (error) {
+        console.error('刷新点赞状态失败:', error);
+        // 不显示错误提示，避免干扰用户
+    }
+}
+
+// 自动刷新点赞数功能
+console.log('自动刷新点赞数功能初始化');
+setInterval(() => {
+    console.log('自动刷新点赞数定时器执行');
+    if (currentNoteId) {
+        console.log('当前笔记ID:', currentNoteId);
+        refreshThumbStatus(currentNoteId);
+    }
+}, 5000); // 每5秒刷新一次点赞数
