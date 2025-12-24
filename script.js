@@ -2009,4 +2009,4 @@ setInterval(() => {
         console.log('当前笔记ID:', currentNoteId);
         refreshThumbStatus(currentNoteId);
     }
-}, 5000); // 每5秒刷新一次点赞数
+}, 10000); // 每10秒刷新一次点赞数
