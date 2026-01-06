@@ -590,7 +590,7 @@ async function loginWithVerifyCode(email, verifyCode) {
         } else {
             return {
                 success: false,
-                message: result.statusCode?.message || '登录失败'
+                message: result.data || result.statusCode?.message || '登录失败'
             };
         }
     } catch (error) {
@@ -659,7 +659,7 @@ async function loginWithPassword(email, password) {
         } else {
             return {
                 success: false,
-                message: result.statusCode?.message || '登录失败'
+                message: result.data || result.statusCode?.message || '登录失败'
             };
         }
     } catch (error) {
@@ -1020,8 +1020,6 @@ async function registerUser(email, password, verifyCode) {
         return { success: true, message: '注册成功' };
     }
 }
-
-
 
 // 加载模拟笔记数据
 function loadMockNotes() {
