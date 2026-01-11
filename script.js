@@ -2008,3 +2008,111 @@ setInterval(() => {
         refreshThumbStatus(currentNoteId);
     }
 }, 10000); // 每10秒刷新一次点赞数
+
+// 搜索功能实现
+const searchInput = document.getElementById('searchInput');
+const searchBtn = document.getElementById('searchBtn');
+const searchResults = document.getElementById('searchResults');
+const searchContainer = document.querySelector('.search-container');
+
+function extractNoteIdFromUrl(url) {
+    if (!url) return null;
+    
+    try {
+        const urlObj = new URL(url);
+        return urlObj.searchParams.get('id') || 
+               urlObj.searchParams.get('noteId') || 
+               urlObj.hash.substring(1) ||
+               null;
+    } catch (e) {
+        return null;
+    }
+}
+
+async function searchNotebooks(keyword) {
+    if (!keyword || keyword.trim() === '') {
+        searchResults.classList.add('hidden');
+        searchResults.innerHTML = '';
+        return;
+    }
+
+    searchResults.innerHTML = '<div class="search-loading">搜索中...</div>';
+    searchResults.classList.remove('hidden');
+
+    try {
+        const result = await apiRequest(`/es/notebook/getByKeywordContaining?keyword=${encodeURIComponent(keyword)}&page=1&size=20`, {
+            method: 'GET'
+        });
+
+        if (result.statusCode && result.statusCode.code === 200 && result.data) {
+            renderSearchResults(result.data);
+        } else {
+            searchResults.innerHTML = '<div class="search-no-results">搜索失败，请稍后重试</div>';
+        }
+    } catch (error) {
+        console.error('搜索失败:', error);
+        searchResults.innerHTML = '<div class="search-no-results">搜索失败，请稍后重试</div>';
+    }
+}
+
+function renderSearchResults(items) {
+    if (!items || items.length === 0) {
+        searchResults.innerHTML = '<div class="search-no-results">未找到相关笔记</div>';
+        return;
+    }
+
+    searchResults.innerHTML = items.map(item => {
+        const noteId = item.id || item.noteId || extractNoteIdFromUrl(item.fileUrl);
+        const highlightHtml = item.highlightContent && item.highlightContent.length > 0
+            ? item.highlightContent.slice(0, 2).map(content => `<div class="search-result-content">${content}</div>`).join('')
+            : '<div class="search-result-content">无匹配内容</div>';
+
+        return `
+            <div class="search-result-item" data-note-id="${noteId}" data-url="${item.fileUrl}">
+                <div class="search-result-title">${item.fileName}</div>
+                ${highlightHtml}
+            </div>
+        `;
+    }).join('');
+
+    document.querySelectorAll('.search-result-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const noteId = item.getAttribute('data-note-id');
+            if (noteId) {
+                loadNote(noteId);
+                searchResults.classList.add('hidden');
+                searchInput.value = '';
+            }
+        });
+    });
+}
+
+searchBtn.addEventListener('click', () => {
+    searchNotebooks(searchInput.value);
+});
+
+let searchDebounceTimer = null;
+
+searchInput.addEventListener('input', (e) => {
+    const keyword = e.target.value.trim();
+    
+    if (searchDebounceTimer) {
+        clearTimeout(searchDebounceTimer);
+    }
+    
+    if (keyword === '') {
+        searchResults.classList.add('hidden');
+        searchResults.innerHTML = '';
+        return;
+    }
+    
+    searchDebounceTimer = setTimeout(() => {
+        searchNotebooks(keyword);
+    }, 1000);
+});
+
+document.addEventListener('click', (e) => {
+    if (!searchContainer.contains(e.target) && !searchResults.contains(e.target)) {
+        searchResults.classList.add('hidden');
+    }
+});
