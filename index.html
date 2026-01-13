@@ -162,6 +162,10 @@
                         </div>
                     </div>
                 </div>
+                <!-- AI聊天按钮 -->
+                <button id="aiChatToggleBtn" class="ai-chat-toggle-btn" title="AI助手">
+                    <span class="ai-icon">🤖</span>
+                </button>
             </div>
         </header>
 
@@ -180,6 +184,25 @@
             </aside>
             <!-- 侧边栏牵拉条 -->
             <div id="sidebar-resizer" class="sidebar-resizer"></div>
+
+            <!-- AI聊天面板 -->
+            <aside id="aiChatPanel" class="ai-chat-panel hidden">
+                <div class="ai-chat-header">
+                    <h3>AI 助手</h3>
+                    <div class="ai-chat-controls">
+                        <button id="ragToggleBtn" class="rag-toggle-btn" title="切换RAG模式">
+                            <span class="rag-icon">📚</span>
+                            <span class="rag-label">RAG</span>
+                        </button>
+                        <button id="closeChatBtn" class="close-chat-btn" title="关闭聊天">×</button>
+                    </div>
+                </div>
+                <div id="chatMessages" class="chat-messages"></div>
+                <div class="chat-input-container">
+                    <textarea id="chatInput" class="chat-input" placeholder="输入消息..." rows="1"></textarea>
+                    <button id="sendChatBtn" class="send-chat-btn">发送</button>
+                </div>
+            </aside>
 
             <!-- 右侧内容 -->
             <main id="content">

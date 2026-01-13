@@ -2116,3 +2116,195 @@ document.addEventListener('click', (e) => {
         searchResults.classList.add('hidden');
     }
 });
+
+// AI聊天功能
+let isRagMode = false;
+let chatMessages = [];
+
+function initAIChat() {
+    const ragToggleBtn = document.getElementById('ragToggleBtn');
+    const closeChatBtn = document.getElementById('closeChatBtn');
+    const sendChatBtn = document.getElementById('sendChatBtn');
+    const chatInput = document.getElementById('chatInput');
+    const aiChatToggleBtn = document.getElementById('aiChatToggleBtn');
+
+    if (ragToggleBtn) {
+        ragToggleBtn.addEventListener('click', toggleRagMode);
+    }
+
+    if (closeChatBtn) {
+        closeChatBtn.addEventListener('click', closeChatPanel);
+    }
+
+    if (sendChatBtn) {
+        sendChatBtn.addEventListener('click', sendMessage);
+    }
+
+    if (aiChatToggleBtn) {
+        aiChatToggleBtn.addEventListener('click', toggleChatPanel);
+    }
+
+    if (chatInput) {
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        chatInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 100) + 'px';
+        });
+    }
+}
+
+function toggleRagMode() {
+    isRagMode = !isRagMode;
+    const ragToggleBtn = document.getElementById('ragToggleBtn');
+    if (ragToggleBtn) {
+        ragToggleBtn.classList.toggle('active', isRagMode);
+        const ragLabel = ragToggleBtn.querySelector('.rag-label');
+        if (ragLabel) {
+            ragLabel.textContent = isRagMode ? 'RAG开启' : 'RAG';
+        }
+    }
+    
+    const statusMessage = isRagMode ? '已开启RAG模式，小博将基于您的笔记内容回答问题' : '已关闭RAG模式，使用普通对话功能';
+    renderMessage('assistant', statusMessage);
+}
+
+function closeChatPanel() {
+    const aiChatPanel = document.getElementById('aiChatPanel');
+    if (aiChatPanel) {
+        aiChatPanel.classList.add('hidden');
+    }
+}
+
+function toggleChatPanel() {
+    const aiChatPanel = document.getElementById('aiChatPanel');
+    if (aiChatPanel) {
+        const isHidden = aiChatPanel.classList.contains('hidden');
+        aiChatPanel.classList.toggle('hidden');
+        
+        if (isHidden && chatMessages.length === 0) {
+            renderMessage('assistant', '您好！我是AI助手小博。您可以普通对话，也可以开启RAG模式让我基于笔记内容回答问题。');
+        }
+    }
+}
+
+function openChatPanel() {
+    const aiChatPanel = document.getElementById('aiChatPanel');
+    if (aiChatPanel) {
+        aiChatPanel.classList.remove('hidden');
+    }
+}
+
+async function sendMessage() {
+    const chatInput = document.getElementById('chatInput');
+    const sendChatBtn = document.getElementById('sendChatBtn');
+    
+    if (!chatInput || !sendChatBtn) return;
+
+    const message = chatInput.value.trim();
+    if (!message) return;
+
+    chatInput.value = '';
+    chatInput.style.height = 'auto';
+
+    chatMessages.push({ role: 'user', content: message });
+    renderMessage('user', message);
+
+    const loadingMessage = renderMessage('loading', '');
+    sendChatBtn.disabled = true;
+
+    try {
+        const endpoint = isRagMode ? '/ai/chatWithRAG' : '/ai/chat';
+        const url = `${API_BASE_URL}${endpoint}`;
+        
+        const token = getCookie('token');
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'token': token || ''
+            },
+            body: JSON.stringify({ message })
+        });
+
+        if (!response.ok) {
+            throw new Error(`网络响应异常: ${response.status}`);
+        }
+
+        if (loadingMessage && loadingMessage.parentNode) {
+            loadingMessage.parentNode.removeChild(loadingMessage);
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let assistantResponse = '';
+        let assistantMessageElement = null;
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value, { stream: true });
+            assistantResponse += chunk;
+
+            if (!assistantMessageElement) {
+                const chatMessagesContainer = document.getElementById('chatMessages');
+                if (chatMessagesContainer) {
+                    assistantMessageElement = document.createElement('div');
+                    assistantMessageElement.className = 'chat-message assistant';
+                    chatMessagesContainer.appendChild(assistantMessageElement);
+                }
+            }
+
+            if (assistantMessageElement) {
+                assistantMessageElement.textContent = assistantResponse;
+                const chatMessagesContainer = document.getElementById('chatMessages');
+                if (chatMessagesContainer) {
+                    chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
+                }
+            }
+        }
+
+        if (assistantResponse) {
+            chatMessages.push({ role: 'assistant', content: assistantResponse });
+        }
+    } catch (error) {
+        console.error('AI聊天请求失败:', error);
+        if (loadingMessage && loadingMessage.parentNode) {
+            loadingMessage.parentNode.removeChild(loadingMessage);
+        }
+        renderMessage('error', '抱歉，发生了错误。请稍后重试。');
+    } finally {
+        sendChatBtn.disabled = false;
+    }
+}
+
+function renderMessage(role, content) {
+    const chatMessagesContainer = document.getElementById('chatMessages');
+    if (!chatMessagesContainer) return null;
+
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `chat-message ${role}`;
+
+    if (role === 'loading') {
+        messageDiv.innerHTML = '<span class="typing-indicator">AI正在思考<span>.</span><span>.</span><span>.</span></span>';
+    } else if (role === 'error') {
+        messageDiv.textContent = content;
+    } else {
+        messageDiv.textContent = content;
+    }
+
+    chatMessagesContainer.appendChild(messageDiv);
+    chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
+    
+    return messageDiv;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    initAIChat();
+});
