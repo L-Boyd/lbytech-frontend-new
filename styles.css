@@ -870,12 +870,31 @@ header h1 {
     top: 64px;
     bottom: 0;
     width: 380px;
+    min-width: 280px;
+    max-width: 600px;
     background-color: #fff;
     box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
     z-index: 999;
     transition: transform 0.3s ease;
+}
+
+.chat-resizer {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    cursor: ew-resize;
+    background-color: transparent;
+    transition: background-color 0.2s;
+    z-index: 10;
+}
+
+.chat-resizer:hover,
+.chat-resizer.resizing {
+    background-color: #3498db;
 }
 
 .ai-chat-panel.hidden {

@@ -2157,6 +2157,45 @@ function initAIChat() {
             this.style.height = Math.min(this.scrollHeight, 100) + 'px';
         });
     }
+
+    initChatResizer();
+}
+
+function initChatResizer() {
+    const resizer = document.getElementById('chatResizer');
+    const aiChatPanel = document.getElementById('aiChatPanel');
+    
+    if (!resizer || !aiChatPanel) return;
+
+    let startX, startWidth;
+
+    resizer.addEventListener('mousedown', (e) => {
+        startX = e.clientX;
+        const panelWidth = aiChatPanel.offsetWidth;
+        const styles = window.getComputedStyle(aiChatPanel);
+        startWidth = panelWidth;
+        
+        resizer.classList.add('resizing');
+        document.body.style.cursor = 'ew-resize';
+        document.body.style.userSelect = 'none';
+
+        const onMouseMove = (e) => {
+            const dx = startX - e.clientX;
+            const newWidth = Math.min(Math.max(startWidth + dx, 280), 600);
+            aiChatPanel.style.width = newWidth + 'px';
+        };
+
+        const onMouseUp = () => {
+            resizer.classList.remove('resizing');
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+        };
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+    });
 }
 
 function toggleRagMode() {
