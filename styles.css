@@ -9,7 +9,8 @@ body {
     line-height: 1.6;
     color: #333;
     background-color: #f5f5f5;
-    padding-bottom: 60px; /* 为固定footer预留空间 */
+    padding-bottom: 60px;
+    padding-top: 64px;
 }
 
 /* 模态框样式 */
@@ -214,8 +215,13 @@ header {
     justify-content: space-between;
     align-items: center;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    height: 64px; /* 修改：设置固定高度 */
-    box-sizing: border-box; /* 确保padding包含在高度内 */
+    height: 64px;
+    box-sizing: border-box;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
 }
 
 .header-right {
@@ -351,6 +357,7 @@ header h1 {
     display: flex;
     flex: 1;
     position: relative;
+    margin-top: 64px;
 }
 
 /* 侧边栏样式 */
