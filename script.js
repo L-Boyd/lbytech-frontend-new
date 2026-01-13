@@ -2120,6 +2120,7 @@ document.addEventListener('click', (e) => {
 // AI聊天功能
 let isRagMode = false;
 let chatMessages = [];
+let shouldAutoScroll = true;
 
 function initAIChat() {
     const ragToggleBtn = document.getElementById('ragToggleBtn');
@@ -2159,6 +2160,15 @@ function initAIChat() {
     }
 
     initChatResizer();
+
+    const chatMessagesContainer = document.getElementById('chatMessages');
+    if (chatMessagesContainer) {
+        chatMessagesContainer.addEventListener('scroll', () => {
+            const { scrollTop, scrollHeight, clientHeight } = chatMessagesContainer;
+            const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
+            shouldAutoScroll = isAtBottom;
+        });
+    }
 }
 
 function initChatResizer() {
@@ -2191,8 +2201,10 @@ function initChatResizer() {
             document.body.style.userSelect = '';
             document.removeEventListener('mousemove', onMouseMove);
             document.removeEventListener('mouseup', onMouseUp);
+            shouldAutoScroll = true;
         };
 
+        shouldAutoScroll = false;
         document.addEventListener('mousemove', onMouseMove);
         document.addEventListener('mouseup', onMouseUp);
     });
@@ -2251,6 +2263,7 @@ async function sendMessage() {
     chatInput.value = '';
     chatInput.style.height = 'auto';
 
+    shouldAutoScroll = true;
     chatMessages.push({ role: 'user', content: message });
     renderMessage('user', message);
 
@@ -2306,9 +2319,11 @@ async function sendMessage() {
                 } catch (e) {
                     assistantMessageElement.textContent = assistantResponse;
                 }
-                const chatMessagesContainer = document.getElementById('chatMessages');
-                if (chatMessagesContainer) {
-                    chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
+                if (shouldAutoScroll) {
+                    const chatMessagesContainer = document.getElementById('chatMessages');
+                    if (chatMessagesContainer) {
+                        chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
+                    }
                 }
             }
         }
@@ -2350,7 +2365,9 @@ function renderMessage(role, content) {
     }
 
     chatMessagesContainer.appendChild(messageDiv);
-    chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
+    if (shouldAutoScroll) {
+        chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
+    }
     
     return messageDiv;
 }
