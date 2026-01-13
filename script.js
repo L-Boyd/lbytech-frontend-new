@@ -2274,6 +2274,9 @@ async function sendMessage() {
         const endpoint = isRagMode ? '/ai/chatWithRAG' : '/ai/chat';
         const url = `${API_BASE_URL}${endpoint}`;
         
+        const modelSelect = document.getElementById('modelSelect');
+        const selectedModel = modelSelect ? modelSelect.value : 'QWEN';
+        
         const token = getCookie('token');
         const response = await fetch(url, {
             method: 'POST',
@@ -2281,7 +2284,7 @@ async function sendMessage() {
                 'Content-Type': 'application/json',
                 'token': token || ''
             },
-            body: JSON.stringify({ message })
+            body: JSON.stringify({ model: selectedModel, message })
         });
 
         if (!response.ok) {
