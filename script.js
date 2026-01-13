@@ -2262,7 +2262,11 @@ async function sendMessage() {
             }
 
             if (assistantMessageElement) {
-                assistantMessageElement.textContent = assistantResponse;
+                try {
+                    assistantMessageElement.innerHTML = marked.parse(assistantResponse);
+                } catch (e) {
+                    assistantMessageElement.textContent = assistantResponse;
+                }
                 const chatMessagesContainer = document.getElementById('chatMessages');
                 if (chatMessagesContainer) {
                     chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
@@ -2295,6 +2299,13 @@ function renderMessage(role, content) {
         messageDiv.innerHTML = '<span class="typing-indicator">AI正在思考<span>.</span><span>.</span><span>.</span></span>';
     } else if (role === 'error') {
         messageDiv.textContent = content;
+    } else if (role === 'assistant') {
+        try {
+            messageDiv.innerHTML = marked.parse(content);
+        } catch (e) {
+            console.error('Markdown渲染失败:', e);
+            messageDiv.textContent = content;
+        }
     } else {
         messageDiv.textContent = content;
     }

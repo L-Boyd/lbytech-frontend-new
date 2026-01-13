@@ -1098,3 +1098,101 @@ header h1 {
         transform: translateY(-4px);
     }
 }
+
+.chat-message.assistant {
+    line-height: 1.6;
+}
+
+.chat-message.assistant p {
+    margin: 8px 0;
+}
+
+.chat-message.assistant p:first-child {
+    margin-top: 0;
+}
+
+.chat-message.assistant p:last-child {
+    margin-bottom: 0;
+}
+
+.chat-message.assistant code {
+    background-color: #f1f2f6;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.9em;
+    color: #e74c3c;
+}
+
+.chat-message.assistant pre {
+    background-color: #2c3e50;
+    padding: 12px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 12px 0;
+}
+
+.chat-message.assistant pre code {
+    background-color: transparent;
+    padding: 0;
+    color: #ecf0f1;
+    font-size: 13px;
+}
+
+.chat-message.assistant ul, .chat-message.assistant ol {
+    margin: 8px 0;
+    padding-left: 24px;
+}
+
+.chat-message.assistant li {
+    margin: 4px 0;
+}
+
+.chat-message.assistant blockquote {
+    border-left: 4px solid #3498db;
+    margin: 12px 0;
+    padding: 8px 16px;
+    background-color: #f8f9fa;
+    color: #555;
+}
+
+.chat-message.assistant h1, .chat-message.assistant h2, .chat-message.assistant h3 {
+    margin: 16px 0 8px;
+    font-weight: 600;
+}
+
+.chat-message.assistant h1 { font-size: 1.5em; }
+.chat-message.assistant h2 { font-size: 1.3em; }
+.chat-message.assistant h3 { font-size: 1.1em; }
+
+.chat-message.assistant a {
+    color: #3498db;
+    text-decoration: none;
+}
+
+.chat-message.assistant a:hover {
+    text-decoration: underline;
+}
+
+.chat-message.assistant table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 12px 0;
+}
+
+.chat-message.assistant th, .chat-message.assistant td {
+    border: 1px solid #ddd;
+    padding: 8px 12px;
+    text-align: left;
+}
+
+.chat-message.assistant th {
+    background-color: #f1f2f6;
+    font-weight: 600;
+}
+
+.chat-message.assistant hr {
+    border: none;
+    border-top: 1px solid #eee;
+    margin: 16px 0;
+}
