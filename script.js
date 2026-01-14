@@ -2061,21 +2061,39 @@ function renderSearchResults(items) {
         return;
     }
 
-    searchResults.innerHTML = items.map(item => {
+    searchResults.innerHTML = '';
+    
+    items.forEach(item => {
         const noteId = item.id || item.noteId || extractNoteIdFromUrl(item.fileUrl);
-        const highlightHtml = item.highlightContent && item.highlightContent.length > 0
-            ? item.highlightContent.slice(0, 2).map(content => `<div class="search-result-content">${content}</div>`).join('')
-            : '<div class="search-result-content">无匹配内容</div>';
+        
+        const resultItem = document.createElement('div');
+        resultItem.className = 'search-result-item';
+        resultItem.setAttribute('data-note-id', noteId);
+        resultItem.setAttribute('data-url', item.fileUrl);
+        
+        const titleDiv = document.createElement('div');
+        titleDiv.className = 'search-result-title';
+        titleDiv.textContent = item.fileName;
+        resultItem.appendChild(titleDiv);
+        
+        if (item.highlightContent && item.highlightContent.length > 0) {
+            item.highlightContent.slice(0, 2).forEach(content => {
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'search-result-content';
+                contentDiv.innerHTML = content;
+                resultItem.appendChild(contentDiv);
+            });
+        } else {
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'search-result-content';
+            contentDiv.textContent = '无匹配内容';
+            resultItem.appendChild(contentDiv);
+        }
+        
+        searchResults.appendChild(resultItem);
+    });
 
-        return `
-            <div class="search-result-item" data-note-id="${noteId}" data-url="${item.fileUrl}">
-                <div class="search-result-title">${item.fileName}</div>
-                ${highlightHtml}
-            </div>
-        `;
-    }).join('');
-
-    document.querySelectorAll('.search-result-item').forEach(item => {
+    searchResults.querySelectorAll('.search-result-item').forEach(item => {
         item.addEventListener('click', () => {
             const noteId = item.getAttribute('data-note-id');
             if (noteId) {
@@ -2085,6 +2103,13 @@ function renderSearchResults(items) {
             }
         });
     });
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 searchBtn.addEventListener('click', () => {
