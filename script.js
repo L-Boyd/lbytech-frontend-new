@@ -1858,20 +1858,19 @@ async function handleThumb() {
     
     try {
         if (note.isThumbed) {
-            // 取消点赞
             await apiRequest('/thumb/unThumbNotebook', {
                 method: 'POST',
                 body: JSON.stringify({ notebookId: currentNoteId })
             });
         } else {
-            // 点赞
             await apiRequest('/thumb/thumbNotebook', {
                 method: 'POST',
                 body: JSON.stringify({ notebookId: currentNoteId })
             });
         }
         
-        // 点赞/取消点赞后，调用getFileById获取最新点赞数和状态
+        await new Promise(resolve => setTimeout(resolve, 180));
+        
         await refreshThumbStatus(currentNoteId);
     } catch (error) {
         console.error('点赞操作失败:', error);
