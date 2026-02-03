@@ -9,6 +9,111 @@
     <script src="marked.min.js"></script>
     <script src="highlight.min.js"></script>
     <link rel="stylesheet" href="highlight.css">
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var commentToggleBtn = document.getElementById('commentToggleBtn');
+            var commentPanel = document.getElementById('commentPanel');
+            var closeCommentBtn = document.getElementById('closeCommentBtn');
+            var submitCommentBtn = document.getElementById('submitCommentBtn');
+            var commentInput = document.getElementById('commentInput');
+            var aiChatPanel = document.getElementById('aiChatPanel');
+            
+            function updateCommentButtonPosition() {
+                if (aiChatPanel && !aiChatPanel.classList.contains('hidden')) {
+                    commentToggleBtn.style.right = '760px';
+                } else {
+                    commentToggleBtn.style.right = '380px';
+                }
+            }
+            
+            if (commentToggleBtn && commentPanel) {
+                console.log('找到评论按钮和评论面板');
+                
+                commentToggleBtn.onclick = function(e) {
+                    console.log('评论按钮被点击');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    if (commentPanel.classList.contains('hidden')) {
+                        commentPanel.classList.remove('hidden');
+                        console.log('评论面板已显示');
+                    } else {
+                        commentPanel.classList.add('hidden');
+                        console.log('评论面板已隐藏');
+                    }
+                    updateCommentButtonPosition();
+                };
+            } else {
+                console.log('未找到评论按钮或评论面板');
+                console.log('commentToggleBtn:', commentToggleBtn);
+                console.log('commentPanel:', commentPanel);
+            }
+            
+            if (closeCommentBtn && commentPanel) {
+                closeCommentBtn.onclick = function(e) {
+                    console.log('关闭按钮被点击');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    commentPanel.classList.add('hidden');
+                    console.log('评论面板已关闭');
+                    updateCommentButtonPosition();
+                };
+            }
+            
+            if (submitCommentBtn && commentInput) {
+                submitCommentBtn.onclick = function(e) {
+                    var content = commentInput.value.trim();
+                    if (content) {
+                        console.log('提交评论:', content);
+                        if (typeof submitComment === 'function') {
+                            submitComment();
+                        }
+                    }
+                };
+            }
+            
+            if (aiChatPanel) {
+                var observer = new MutationObserver(function() {
+                    updateCommentButtonPosition();
+                });
+                observer.observe(aiChatPanel, { attributes: true, attributeFilter: ['class'] });
+            }
+            
+            var refreshCommentBtn = document.getElementById('refreshCommentBtn');
+            if (refreshCommentBtn) {
+                refreshCommentBtn.onclick = function(e) {
+                    console.log('刷新评论');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (typeof loadComments === 'function') {
+                        currentCommentPage = 1;
+                        loadComments(currentNoteId);
+                    }
+                };
+            }
+            
+            document.addEventListener('click', function(e) {
+                var deleteBtn = e.target.closest('.comment-delete-btn');
+                var likeBtn = e.target.closest('.comment-like-btn');
+                
+                if (deleteBtn) {
+                    var commentId = deleteBtn.getAttribute('data-comment-id');
+                    console.log('删除评论:', commentId);
+                    if (typeof deleteComment === 'function') {
+                        deleteComment(commentId);
+                    }
+                }
+                
+                if (likeBtn) {
+                    var commentId = likeBtn.getAttribute('data-comment-id');
+                    console.log('点赞评论:', commentId);
+                    if (typeof likeComment === 'function') {
+                        likeComment(commentId);
+                    }
+                }
+            });
+        });
+    </script>
 </head>
 <body>
     <!-- 登录模态框 -->
@@ -215,6 +320,40 @@
                     <!-- Markdown内容将在这里渲染 -->
                 </div>
             </main>
+            
+            <!-- 评论按钮 -->
+            <button id="commentToggleBtn" class="comment-toggle-btn" title="查看评论">
+                <span>💬</span>
+                <span class="comment-btn-label">评论</span>
+            </button>
+            
+            <!-- 评论面板 -->
+            <aside id="commentPanel" class="comment-panel hidden">
+                <div class="comment-panel-header">
+                    <h3>评论</h3>
+                    <div class="comment-header-actions">
+                        <button id="refreshCommentBtn" class="comment-action-btn" title="刷新评论">🔄</button>
+                        <span id="commentCount" class="comment-count">0 条评论</span>
+                        <button id="closeCommentBtn" class="close-comment-btn" title="关闭">×</button>
+                    </div>
+                </div>
+                
+                <!-- 添加评论表单 -->
+                <div class="comment-form">
+                    <textarea id="commentInput" class="comment-input" placeholder="写下你的评论..." rows="3"></textarea>
+                    <button id="submitCommentBtn" class="submit-comment-btn">发表评论</button>
+                </div>
+                
+                <!-- 评论列表 -->
+                <div id="commentList" class="comment-list">
+                    <!-- 评论将在这里渲染 -->
+                </div>
+                
+                <!-- 加载更多按钮 -->
+                <div id="loadMoreComments" class="load-more-comments hidden">
+                    <button id="loadMoreBtn" class="load-more-btn">加载更多</button>
+                </div>
+            </aside>
         </div>
     </div>
 

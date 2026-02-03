@@ -1575,6 +1575,10 @@ async function loadNote(noteId) {
             // 更新页面标题
             document.title = `${note.title} - 学习笔记平台`;
             
+            // 加载评论
+            currentCommentPage = 1;
+            loadComments(1);
+            
             // 高亮当前选中的导航项
             document.querySelectorAll('#noteNav a').forEach(item => {
                 item.classList.remove('active');
@@ -1596,6 +1600,10 @@ async function loadNote(noteId) {
                 generateSidebarIndex();
             }
         }
+        
+        // 加载评论
+        currentCommentPage = 1;
+        loadComments(1);
     } catch (error) {
         console.error('获取笔记详情请求失败:', error);
         // 如果请求失败但有本地模拟数据，则使用本地内容
@@ -1609,6 +1617,10 @@ async function loadNote(noteId) {
             // 生成侧边栏目录
             generateSidebarIndex();
         }
+        
+        // 加载评论
+        currentCommentPage = 1;
+        loadComments(1);
     }
 }
 
@@ -2401,4 +2413,218 @@ function renderMessage(role, content) {
 
 document.addEventListener('DOMContentLoaded', () => {
     initAIChat();
+    initFooterToggle();
+    initComments();
 });
+
+let comments = [];
+let currentCommentPage = 1;
+const COMMENTS_PAGE_SIZE = 10;
+
+function initComments() {
+    const commentInput = document.getElementById('commentInput');
+    const loadMoreBtn = document.getElementById('loadMoreBtn');
+    
+    if (commentInput) {
+        commentInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                submitComment();
+            }
+        });
+    }
+    
+    if (loadMoreBtn) {
+        loadMoreBtn.addEventListener('click', loadMoreComments);
+    }
+}
+
+async function submitComment() {
+    if (!currentNoteId) return;
+    
+    const commentInput = document.getElementById('commentInput');
+    const submitCommentBtn = document.getElementById('submitCommentBtn');
+    const content = commentInput.value.trim();
+    
+    if (!content) {
+        alert('请输入评论内容');
+        return;
+    }
+    
+    submitCommentBtn.disabled = true;
+    submitCommentBtn.textContent = '发表中...';
+    
+    try {
+        const result = await apiRequest('/comment/addComment', {
+            method: 'POST',
+            body: JSON.stringify({
+                notebookId: parseInt(currentNoteId),
+                parentId: 0,
+                content: content
+            })
+        });
+        
+        if (result.statusCode && result.statusCode.code === 200) {
+            commentInput.value = '';
+            await loadComments(1);
+        } else {
+            alert('发表评论失败，请稍后重试');
+        }
+    } catch (error) {
+        console.error('发表评论失败:', error);
+        alert('发表评论失败，请稍后重试');
+    } finally {
+        submitCommentBtn.disabled = false;
+        submitCommentBtn.textContent = '发表评论';
+    }
+}
+
+async function loadComments(page = 1) {
+    if (!currentNoteId) return;
+    
+    const commentList = document.getElementById('commentList');
+    const commentCount = document.getElementById('commentCount');
+    const loadMoreComments = document.getElementById('loadMoreComments');
+    
+    try {
+        const result = await apiRequest(`/comment/getCommentPageByNotebookId?notebookId=${currentNoteId}&pageNum=${page}&pageSize=${COMMENTS_PAGE_SIZE}`, {
+            method: 'GET'
+        });
+        
+        if (result.statusCode && result.statusCode.code === 200 && result.data) {
+            if (page === 1) {
+                comments = result.data;
+                renderComments(comments);
+            } else {
+                comments = [...comments, ...result.data];
+                renderMoreComments(result.data);
+            }
+            
+            commentCount.textContent = `${comments.length} 条评论`;
+            
+            if (result.data.length < COMMENTS_PAGE_SIZE) {
+                loadMoreComments.classList.add('hidden');
+            } else {
+                loadMoreComments.classList.remove('hidden');
+            }
+        }
+    } catch (error) {
+        console.error('加载评论失败:', error);
+    }
+}
+
+function renderComments(commentData) {
+    const commentList = document.getElementById('commentList');
+    if (!commentList) return;
+    
+    commentList.innerHTML = commentData.map(comment => createCommentItem(comment)).join('');
+}
+
+function renderMoreComments(newComments) {
+    const commentList = document.getElementById('commentList');
+    if (!commentList) return;
+    
+    newComments.forEach(comment => {
+        const commentElement = document.createElement('div');
+        commentElement.innerHTML = createCommentItem(comment);
+        commentList.appendChild(commentElement);
+    });
+}
+
+function createCommentItem(comment) {
+    const userEmail = getCookie('userEmail');
+    const isOwnComment = comment.userEmail === userEmail;
+    const formattedTime = formatCommentTime(comment.createTime);
+    
+    return `
+        <div class="comment-item" data-comment-id="${comment.id}">
+            <div class="comment-item-header">
+                <span class="comment-user-email">${escapeHtml(comment.userEmail)}</span>
+                <span class="comment-time">${formattedTime}</span>
+            </div>
+            <div class="comment-content">${escapeHtml(comment.content)}</div>
+            <div class="comment-actions">
+                <button class="comment-like-btn" data-comment-id="${comment.id}">
+                    <span>👍</span>
+                    <span>${comment.likeCount || 0}</span>
+                </button>
+                ${isOwnComment ? `<button class="comment-delete-btn" data-comment-id="${comment.id}">删除</button>` : ''}
+            </div>
+        </div>
+    `;
+}
+
+function formatCommentTime(timeStr) {
+    if (!timeStr) return '';
+    
+    const date = new Date(timeStr);
+    const now = new Date();
+    const diff = now - date;
+    
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+    
+    if (minutes < 1) return '刚刚';
+    if (minutes < 60) return `${minutes}分钟前`;
+    if (hours < 24) return `${hours}小时前`;
+    if (days < 7) return `${days}天前`;
+    
+    return date.toLocaleDateString('zh-CN');
+}
+
+async function deleteComment(commentId) {
+    if (!confirm('确定要删除这条评论吗？')) return;
+    
+    try {
+        const result = await apiRequest(`/comment/deleteComment?commentInfoId=${commentId}`, {
+            method: 'DELETE'
+        });
+        
+        if (result.statusCode && result.statusCode.code === 200) {
+            comments = comments.filter(c => c.id !== commentId);
+            renderComments(comments);
+            const commentCount = document.getElementById('commentCount');
+            commentCount.textContent = `${comments.length} 条评论`;
+        } else {
+            alert('删除评论失败，请稍后重试');
+        }
+    } catch (error) {
+        console.error('删除评论失败:', error);
+        alert('删除评论失败，请稍后重试');
+    }
+}
+
+function loadMoreComments() {
+    currentCommentPage++;
+    loadComments(currentCommentPage);
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+async function likeComment(commentId) {
+    try {
+        const comment = comments.find(c => c.id == commentId);
+        if (!comment) return;
+        
+        const result = await apiRequest('/comment/likeComment', {
+            method: 'POST',
+            body: JSON.stringify({ commentInfoId: commentId })
+        });
+        
+        if (result.statusCode && result.statusCode.code === 200) {
+            comment.likeCount = (comment.likeCount || 0) + 1;
+            renderComments(comments);
+        } else {
+            alert('点赞失败，请稍后重试');
+        }
+    } catch (error) {
+        console.error('点赞失败:', error);
+        alert('点赞失败，请稍后重试');
+    }
+}
