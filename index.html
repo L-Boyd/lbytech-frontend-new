@@ -92,6 +92,18 @@
                 };
             }
             
+            var loadMoreBtn = document.getElementById('loadMoreBtn');
+            if (loadMoreBtn) {
+                loadMoreBtn.onclick = function(e) {
+                    console.log('加载更多评论');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (typeof loadMoreComments === 'function') {
+                        loadMoreComments();
+                    }
+                };
+            }
+            
             document.addEventListener('click', function(e) {
                 var deleteBtn = e.target.closest('.comment-delete-btn');
                 var likeBtn = e.target.closest('.comment-like-btn');
